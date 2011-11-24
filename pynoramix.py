@@ -32,8 +32,7 @@ import pyn_fort_general as f
 #import pyn_fort_net as f_net
 
 # GNM and ANM:
-from pyn_cl_gnm import *
-from pyn_cl_anm import *
-import pyn_fort_gnm as f_gnm
+from pyn_cl_enm import *
+import pyn_fort_enm as f_enm
 
 
