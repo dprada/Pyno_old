@@ -13,3 +13,22 @@ With gfortran in Goldrake:
 
 f2py2 -c -m pyn_fort_general pyn_fort_general.f90
 f2py2 -c -m pyn_fort_gnm pyn_fort_gnm.f90 -llapack
+
+--------------------------------------------
+
+Provisional Structure:
+
+>> pynoramix.py   (main file with heads, variables and includes)
+
+   >> pyn_cl_set        (classes -topology- and functions of general purposse)
+   >> pyn_cl_coors      (class coordinates)
+   >> pyn_fort_general  (fortran subroutines of general purposse)
+
+   >> pyn_cl_enm        (module with elastic network models)
+   >> pyn_fort_enm      (specific fortran subroutines for enm analysis)
+
+   >> pyn_cl_water      (module with specific water analysis) -To be added-
+   >> pyn_fort_water    (specific fortran subroutines for water analysis) -To be added-
+
+   >> pyn_cl_net        (module with complex network analysis) -To be added-
+   >> pyn_fort_net      (specific fortran subroutines for network analysis) -To be added-
