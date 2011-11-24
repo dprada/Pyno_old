@@ -12,8 +12,6 @@ from os import system
 from os import path
 import pylab
 from numpy import *
-
-# pyn_cl_set:
 import pickle as pic
 
 
@@ -26,12 +24,12 @@ from pyn_cl_coors import *
 import pyn_fort_general as f
 
 # Water:
-from pyn_cl_water import *
-import pyn_fort_water as f_wat
+#from pyn_cl_water import *
+#import pyn_fort_water as f_wat
 
 # Networks:
-from pyn_cl_net import *
-import pyn_fort_net as f_net
+#from pyn_cl_net import *
+#import pyn_fort_net as f_net
 
 # GNM and ANM:
 from pyn_cl_gnm import *
