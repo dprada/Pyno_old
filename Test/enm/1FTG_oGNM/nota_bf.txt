@@ -1,0 +1,5 @@
+Theoretical & Experimental B-factors (.bfactor)
+
+Gamma: 2.4051e-001*kb*T/Å^2, kb is Boltzmann Constant.
+
+Correlation Coefficient: 0.4699
