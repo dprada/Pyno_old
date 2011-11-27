@@ -1,5 +1,6 @@
 from numpy import *
 import pyn_fort_enm as f_enm
+import pyn_fort_general as f
 import pylab
 
 class gnm():
@@ -25,7 +26,7 @@ class gnm():
 
         self.system=system
         comap=f_enm.contact_map(cutoff,system.coors[0].xyz,system.num_atoms)
-        return array(comap,dtype=bool)
+        return comap
 
     def fitt_bfacts(self):
         
@@ -211,7 +212,7 @@ class anm():
 
         self.system=system
         comap=f_enm.contact_map(cutoff,system.coors[0].xyz,system.num_atoms)
-        return array(comap,dtype=bool)
+        return comap
 
     def fitt_bfacts(self):
         
@@ -345,6 +346,30 @@ class anm():
 
         num_nodes=len(self.contact_map[0])
         self.correl=f_enm.correlation(self.eigenvects2,self.eigenvals,list_modes,num_nodes,num_modes)
+
+    def involv_coefficient(self,modes='ALL',vect=None):
+
+        if vect==None:
+            print 'Error: vect=None'
+            return
+
+        self.ic={}
+        list_modes=[]
+        
+        if modes=='ALL':
+            for ii in range(self.num_modes):
+                list_modes.append(ii+1)
+        elif type(modes)==int:
+            list_modes.append(modes)
+        elif type(modes) in [list,tuple]:
+            list_modes=modes
+
+        for ii in list_modes:
+            self.ic[ii]=f.aux_funcs_general.proj3d(self.eigenvects[ii],vect,len(self.eigenvects[ii]))
+
+        return
+
+        
 
     def write(self):
 

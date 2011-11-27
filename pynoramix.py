@@ -10,6 +10,7 @@ home_path='~/Pyno/'
 
 from os import system
 from os import path
+import copy
 import pylab
 from numpy import *
 import pickle as pic

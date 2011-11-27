@@ -9,7 +9,7 @@ class cl_coors:
         self.frame=0
         self.step=0
         self.precision=0
-
+        self.model=''
 
         self.xyz=[]
         self.box=npy.zeros(shape=(3,3),order='Fortran')
@@ -19,7 +19,7 @@ class cl_coors:
                 self.read_inp(self.file)
                 
             if self.file.endswith('pdb'):
-                self.read_pdb(self.file)
+                self.read_pdb(self.file,frame)
             
             if self.file.endswith('gro'):
                 self.read_gro(self.file)
@@ -38,10 +38,10 @@ class cl_coors:
 #>>>>>>>>>>#>>>>>>>>>>
 
 
-    def read_pdb (self,name_file):
+    def read_pdb (self,name_file,frame):
 
-
-     for line in open(name_file,'r'):
+        model=1
+        for line in open(name_file,'r'):
             ii=line.split()
 
             if ii[0]=='CRYST1':                               # Reading the size of the box:
@@ -50,11 +50,16 @@ class cl_coors:
                 self.box[2][2]=float(ii[3])               
 
 
-            if ii[0] in ['ATOM','HETATM']:
+            if (ii[0] in ['ATOM','HETATM']) and model==frame :
 
                 aux=(float(line[30:38]),float(line[38:46]),float(line[46:54]))
                 self.xyz.append(aux)
-
+                
+            if ii[0]=='MODEL': 
+                model=int(ii[1])
+                if model>frame: 
+                    self.model=frame
+                    break
 
 #>>>>>>>>>> FILE.GRO
 

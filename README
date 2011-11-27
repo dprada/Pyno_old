@@ -6,13 +6,13 @@ Instructions to compile the fortran subroutines:
 
 With ifort:
 
-f2py -c -m pyn_fort_general pyn_fort_general.f90
-f2py -c -m pyn_fort_enm pyn_fort_enm.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
+f2py -c -m pyn_fort_general pyn_fort_general.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
+f2py -c -m pyn_fort_gnm pyn_fort_gnm.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
 
 With gfortran in Goldrake:
 
-f2py2 -c -m pyn_fort_general pyn_fort_general.f90
-f2py2 -c -m pyn_fort_enm pyn_fort_enm.f90 -llapack
+f2py2 -c -m pyn_fort_general pyn_fort_general.f90 -llapack
+f2py2 -c -m pyn_fort_gnm pyn_fort_gnm.f90 -llapack
 
 --------------------------------------------
 

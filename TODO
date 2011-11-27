@@ -1,4 +1,5 @@
 - Include the network module
 - Include the water module
-- Include the RMS FIT
-- Define the displacement vector and the involvent coefficient (ENM)
+- Check the displacement vector and the involvent coefficient (ENM)
+- Think about the concept 'parent'
+- Make two different functions: make_selection (mirror) and make_set_from_selection (no mirror)

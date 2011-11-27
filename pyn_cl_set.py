@@ -1,15 +1,20 @@
-############ GENERAL COMMENTS
+####################################
+# GENERAL COMMENTS
 #
 # This module requires:
 #
-#from pyn_cl_unit import *
-#from pyn_cl_coors import *
-#from os import system
-#from os import path
-#from numpy import *
-#import pylab
-#import pyn_fort as f
-#import pickle as pic
+
+from pyn_cl_coors import *
+from os import system
+from os import path
+from numpy import *
+import copy
+import pylab
+import pyn_fort_general as f
+import pickle as pic
+import datetime as datetime
+
+
 #
 # Structure of the file:
 #
@@ -20,60 +25,189 @@
 # -Class Residue
 # -Class Water
 # -External functions
+#
 
-class cl_set:
+#
+# END GENERAL COMMENTS
+####################################
 
+
+
+
+#######################################################
+#######################################################
+#### CLASSES
     
-    ###
-    ### Class Instantiation
-    ###
+####
+#### Labels or common attributes to be inherited
+####
 
-    def __init__(self,input_file=None,input_selection=None,download=None,verbose=True):
+class labels_unit():                           # Every unit (atom) has at least these attributes
+    def __init__(self):
+        self.name=None
+        self.index=None
+        self.pdb_index=None
 
-        # > Instantation options:
-        self.file=input_file
-        self.select=input_selection
-        self.file_hbonds=''
-        self.file_mss=''
-        self.file_shell=''
-        
+class labels_set(labels_unit):                 # Every set of units (chain, residue, molecule) has at least these attributes
+    def __init__(self):
+        self.num_atoms=0
+        self.list_atoms=[]
+
+class labels_parent(labels_unit):               # A selection always keep memory of the previous location
+    def __init__(self,parent,argument=None,unit=False):
+        if unit:
+            self.name=parent.name
+            self.index=parent.index
+            self.pdb_index=parent.pdb_index
+        else:
+            self.name=parent.name
+            self.condition=argument
+
+####
+#### Class Unit (atom)
+####
+
+
+class cl_unit(labels_unit):                     # Attributes of an atom
+
+    def __init__(self):
+        '''Initialize an atom object'''
+
+        # From labels_unit: .name, .index, .pdb_index        
 
         # > Topological properties
-        self.num_atoms=0
-        self.name=''
-        self.index=0
-        self.pdb_index=0
-        self.atom=[]       #list of objects unit
-        self.list_atoms=[]
-        self.acceptors=[]
-        self.donors=[]
-        self.dimensionality=0
-        self.ss_pdb=[]
-        self.chains=[]
-        self.water_model=''
+
+        self.resid=labels_unit()         # Residue which this atom belongs to. 
+        self.chain=labels_unit()         # Chain which this atom belongs to.
+        self.parent=None                # Selection which this atom comes from.
+
+        self.covalent_bond=[]           # List of atoms covalently bonded.
+        self.alt_loc=0                  # Alternate location (PDB)
+        self.code_ins_res=0             # Code of insertion of residues (PDB)
+        self.seg_ident=''               # Index segment (PDB)
+        self.elem_symb=''               # Element symbol (PDB)
+        self.type_pdb=''                # Type of atom for the PDB (ATOM,HETATM)
+
+        # > Physical and Chemical properties
+
+        self.mass=0.0                   # Mass
+        self.charge=0.0                 # Charge
+        self.vdw=0.0                    # VdW radius
+        self.occup=0.0                  # Occupation (PDB)
+        self.bfactor=0.0                # B-Factor
+        self.acceptor=False             # True or false 
+        self.donor=False                # True or false
+        self.polar_class='Nothing'      # Acceptor or Donnor or nothing
+        self.polarizability=False       # True of falsel
+
+####
+#### Class residue (set of atoms)
+####
+
+
+class cl_residue(labels_set):           # Attributes of a residue (inherits from label_set)
+
+    def __init__( self ):
+
+        # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
+
+        self.chain=labels_unit()         # Chain which this residue belongs to.
+
+        pass
+
+
+####
+#### Class water (set of atoms)
+####
+
+class cl_water(labels_set):             # Attributes of a water molecule
+    '''Water specific attributes and methods'''
+
+    def __init__( self ,water_model=None):
+
+        # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
+
+        self.water_model=water_model
+                
+        self.O=labels_unit()
+        self.H1=labels_unit()
+        self.H2=labels_unit()
+        self.uvect_norm=[]
+        #def get_uvect_norm(self):
+        
+        pass
+
+####
+#### Class set (set of atoms: Molecule)
+####
+
+
+class cl_set(labels_set):               # The suptra-estructure: System (waters+cofactors+proteins...)
+
+    
+    def __init__(self,input_file=None,download=None,coors=True,verbose=True):
+
+        # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
+
+        # > Instantation options:
+        self.file=input_file            # pdb,gro...
+        self.file_hbonds=''             # still not useful -do not remove-
+        self.file_mss=''                # still not useful -do not remove-
+        self.file_shell=''              # still not useful -do not remove-
+        self.selection=False            # is the set a selection (a mirror -pointer- of a parent set)
+        
+        # > Topological properties
+        self.atom=[]                    # list of atoms    (objects: cl_unit)
+        self.resid=[]                   # list of residues (objects: cl_set)
+        self.chain=[]                   # list of chains   (objects: cl_set)
+        self.chains=[]                  # list of chain names (strings)
+        self.water=[]                   # list of waters   (objects: cl_water)
+        self.water_model=''             # water model
+        self.parent=None                # Parent set if it comes from selection (object: labels_parent)
+
+        # > Physical and Chemical properties
+        self.acceptors=[]               # list of acceptors
+        self.donors=[]                  # list of donnors
+        self.dimensionality=0           # dimensionality (num_atoms*3)
 
         # > Coordinates
-        self.recent_frame=0
-        self.coors=[]      # list of objects coor
-        self.dist_matrix=[]
+        self.coors=[]                   # list of coordinates (objects: cl_coors)
+        self.num_frames=0               # number of frames or models
+        self.recent_frame=0             # auxilary index of the last frame analysed
+        self.dist_matrix=[]             # distance matrix (This should go to cl_coors?)
+
+        # > Info PDB
+        self.pdb_header=[]              # PDB Header (HEAD + TITLE)
+        self.pdb_ss=[]                  # PDB Secondary structure
+        
 
         ##################################
 
-        # BUILDING THE TOPOLOGY OF THE SET FROM A FILE
+        # A SET CAN BE BUILT FROM A FILE OR FROM A SELECTION
 
-        ### Download option:
+        # IF IT COMES FROM A FILE, DOES IT NEED TO BE DOWNLOADED?
 
         if download:
             if not path.exists(download):
+                if not download.endswith('pdb'):
+                    download=download+'.pdb'
                 temp='wget -nv http://www.rcsb.org/pdb/files/'+download
                 system(temp)
 
             input_file=download
             self.file=input_file
 
-        ### Reading the file and attaching the atoms to the set
+        # BUILDING THE SET FROM A FILE
 
-        if self.file:
+        if input_file:
+
+            # The file does not exist?
+            if not download and not path.exists(input_file):
+                print "# The file "+input_file+" does not exist."
+                return
+
+            # Reading the file and
+            # attaching the atoms: self.atom[] (cl_unit)
 
             if self.file.endswith('pdb'):
                 self.read_pdb(self.file)
@@ -81,111 +215,155 @@ class cl_set:
             if self.file.endswith('gro'):
                 self.read_gro(self.file)
 
-            ### Setting up other atoms' attributes
-
-
-
-            ### Setting up the chains
-            for aa in self.atom[:]:
-                if aa.type_pdb in ['ATOM']:
-                    if aa.chain not in self.chains:
-                        self.chains.append(aa.chain)
-
-
-            ### Auxiliary dictionary
+            # Finnal set up of the attributes of the cl_units in self.atom[]:
             
-            before=-99
+            before_resid=None
+            before_chain=None
+            jj=-1
             ii=-1
-            for aa in self.atom:
-                if aa.resid_pdb_index != before :
-                    before=aa.resid_pdb_index
-                    ii+=1
-                aa.resid_index=ii
+            kk=-1
+            for atom in self.atom:
+                if atom.resid.pdb_index!=before_resid :
+                    before_resid=atom.resid.pdb_index
+                    jj+=1   
+                if atom.chain.name!=before_chain :
+                    before_chain=atom.chain.name
+                    kk+=1
+                ii+=1
+                atom.index=ii                   # atom index for pynoramix
+                atom.resid.index=jj             # resid index for pynoramix
+                atom.chain.index=kk
 
+            ### Setting up the subsets: residues, waters, chains.
+
+            # Auxiliary dictionary to build resids and waters.
 
             aux={}
 
-            for aa in self.atom[:]:
-                ii=aa.resid_index
+            for atom in self.atom[:]:
+                ii=atom.resid.index
                 try: 
-                    aux[ii][aa.name]=aa.index
+                    aux[ii][atom.name]=atom.index
                 except:
                     aux[ii]={}
-                    aux[ii][aa.name]=aa.index
+                    aux[ii][atom.name]=atom.index
 
-            for aa in self.atom[:]:
-                if aa.name in ['OW']:
-                    aa.acceptor=True
-                    aa.polar_class='acceptor'
-                    aa.polarizability=True
-                    aa.covalent_bond.append(aux[aa.resid_index]['HW1'])
-                    aa.covalent_bond.append(aux[aa.resid_index]['HW2'])
-                if aa.name in ['O'] and aa.resid_name in ['HOH','SOL','HO4','water']:
-                    aa.acceptor=True
-                    aa.polar_class='acceptor'
-                    aa.polarizability=True
-                if aa.name in ['HW1','HW2']:
-                    aa.donor=True
-                    aa.polar_class='donor'
-                    aa.polarizability=True
-                    aa.covalent_bond.append(aux[aa.resid_index]['OW'])
-        
-            ### Setting up the residues
+            # Residues:
 
-            self.residue=[]
-            for aa in aux.keys():
+            for ii in aux.keys():
                 temp_residue=cl_residue()
-                temp_residue.index=aa
-                temp_residue.list_atoms=aux[aa].values()
-                ii=temp_residue.list_atoms[0]
-                temp_residue.pdb_index=self.atom[ii].resid_pdb_index
-                temp_residue.name=self.atom[ii].resid_name
-                self.residue.append(temp_residue)
+                temp_residue.index=ii
+                temp_residue.list_atoms=aux[ii].values()
+                jj=temp_residue.list_atoms[0]
+                temp_residue.pdb_index=self.atom[jj].resid.pdb_index
+                temp_residue.name=self.atom[jj].resid.name
+                self.resid.append(temp_residue)
 
 
-            ### Setting up the waters
+            # Waters
 
-            self.water=[]
-            for aa in self.residue[:]:
-                if aa.name in ['HOH','SOL','HO4']:
+            for residue in self.resid[:]:
+                if residue.name in ['HOH','SOL','HO4','water']:
                     temp_water=cl_water()
-                    temp_water.name=aa.name
-                    temp_water.index=aa.index
-                    temp_water.pdb_index=aa.pdb_index
-                    temp_water.list_atoms=aa.list_atoms
+                    temp_water.name=residue.name
+                    temp_water.index=residue.index
+                    temp_water.pdb_index=residue.pdb_index
+                    temp_water.list_atoms=residue.list_atoms
                     if self.water_model==None:
-                        self.water_model='tip'+str(len(aa.list_atoms))+'p'
-                    if 'HW1' in aux[aa.index].keys():
-                        temp_water.H1=aux[aa.index]['HW1']
-                        temp_water.H2=aux[aa.index]['HW2']
-                        temp_water.O=aux[aa.index]['OW']
-                    if 'O' in aux[aa.index].keys():
-                        temp_water.O=aux[aa.index]['O']
+                        self.water_model='tip'+str(len(residue.list_atoms))+'p'
+                    if 'HW1' in aux[residue.index].keys():
+                        ii=aux[residue.index]['HW1']
+                        temp_water.H1.index=ii
+                        temp_water.H1.pdb_index=self.atom[ii].pdb_index
+                        temp_water.H1.name='HW1'
+                        ii=aux[residue.index]['HW2']
+                        temp_water.H2.index=ii
+                        temp_water.H2.pdb_index=self.atom[ii].pdb_index
+                        temp_water.H2.name='HW2'
+                        ii=aux[residue.index]['OW']
+                        temp_water.O.index=ii
+                        temp_water.O.pdb_index=self.atom[ii].pdb_index
+                        temp_water.O.name='OW'
+                    if 'O' in aux[residue.index].keys():
+                        temp_water.H1=None
+                        temp_water.H2=None
+                        ii=aux[residue.index]['O']
+                        temp_water.O.index=ii
+                        temp_water.O.pdb_index=self.atom[ii].pdb_index
+                        temp_water.O.name='O'
+
+
+                    for atom in [self.atom[ii] for ii in temp_water.list_atoms[:]]:
+                        if atom.name in ['OW']:
+                            atom.acceptor=True
+                            atom.polar_class='acceptor'
+                            atom.polarizability=True
+                            atom.covalent_bond.append(aux[atom.resid.index]['HW1'])
+                            atom.covalent_bond.append(aux[atom.resid.index]['HW2'])
+                        if atom.name in ['O']:
+                            atom.acceptor=True
+                            atom.polar_class='acceptor'
+                            atom.polarizability=True
+                        if atom.name in ['HW1','HW2']:
+                            atom.donor=True
+                            atom.polar_class='donor'
+                            atom.polarizability=True
+                            atom.covalent_bond.append(aux[atom.resid.index]['OW'])
+
                     self.water.append(temp_water)
 
-            ### Setting up global attributes
+            # Chains
+            ii=-1
+            for atom in self.atom[:]:
+                if atom.type_pdb in ['ATOM']:
+                    if atom.chain.name not in self.chains:
+                        ii+=1
+                        self.chains.append(atom.chain.name)
+                        temp_chain=labels_set()
+                        temp_chain.name=atom.chain.name
+                        temp_chain.index=ii
+                        self.chain.append(temp_chain)
+                    self.chain[ii].list_atoms.append(atom.index)
+            for residue in self.resid[:]:
+                ii=residue.list_atoms[0]
+                residue.chain.name=self.atom[ii].chain.name
+                residue.chain.index=self.atom[ii].chain.index
 
-            ii=self.file[::-1].find('.')
-            self.name=self.file[:-ii]
+
+            # Deleting the auxiliary dictionary:
+            del(aux)
+
+            ### Setting up the global attributes
+
+            self.name=self.file[:-self.file[::-1].find('.')-1]       # file=FOO.N.pdb -> name=FOO.N
             self.num_atoms=len(self.atom)
             self.dimensionality=self.num_atoms*3
-            for aa in self.atom[:]:
-                if aa.acceptor: self.acceptors.append(aa.index)
-                if aa.donor: self.donors.append(aa.index)
+            for atom in self.atom[:]:
+                if atom.acceptor: self.acceptors.append(atom.index)
+                if atom.donor: self.donors.append(atom.index)
             self.acceptors=array(self.acceptors,order='Fortran')
             self.donors=array(self.donors,order='Fortran')
-            self.num_residues=len(self.residue)
+            self.num_residues=len(self.resid)
             self.num_waters=len(self.water)
+            self.num_chains=len(self.chains)
+            self.list_atoms=[ii for ii in range(self.num_atoms)]
 
+            ### Loading coordinates
+            if coors:
+                self.load_coors(self.file)
+ 
 
-            ### Print info:
-            if self.verbose:
+            if verbose:
                 self.info()
 
 
+        ## END of IF input_file
+
+
+    # END OF INSTANTATION
 
     ###
-    ### Functions
+    ### INTERNAL FUNCTIONS OF A SET
     ###
 
     # Info function
@@ -195,19 +373,24 @@ class cl_set:
         print '#','System created from the file ',self.file,':'
         print '#',self.num_atoms,' atoms'
         print '#',self.num_residues,' residues'
-        print '#',len(self.chains),' chains'
+        print '#',self.num_chains,' chains'
         print '#',self.num_waters,' waters'
-
+        print '#',self.num_frames,' frames/models'
 
     # To handle files
 
     def read_pdb (self,name_file):
 
         for line in open(name_file,'r'):
+
             ss=line.split()
 
-            if ss[0] in ['HELIX','SHEET','TURN']:
-                self.ss_pdb.append(line)
+            if ss[0] in ['HEADER','TITLE','CRYST1']: self.pdb_header.append(line)
+
+            if ss[0].startswith('END'): break  # To read only the 1st model
+
+            if ss[0] in ['HELIX','SHEET','TURN']: self.pdb_ss.append(line)
+
             if ss[0] in ['ATOM','HETATM']:
 
                 temp_atom=cl_unit()
@@ -215,38 +398,38 @@ class cl_set:
                 temp_atom.pdb_index=int(line[6:11])
                 temp_atom.name=(line[12:16].split())[0]
                 temp_atom.alt_loc=line[16]
-                temp_atom.resid_name=(line[17:20])
-                temp_atom.chain=line[21]
-                temp_atom.resid_pdb_index=int(line[22:26])
+                temp_atom.resid.name=(line[17:20])
+                temp_atom.chain.name=line[21]
+                temp_atom.resid.pdb_index=int(line[22:26])
                 temp_atom.code_ins_res=line[26]
                 temp_atom.occup=float(line[54:60])
                 temp_atom.bfactor=float(line[60:66])
                 temp_atom.seg_ident=line[72:76].replace(' ', '')
                 temp_atom.elem_symb=line[76:78].replace(' ', '')
                 temp_atom.charge=line[78:80].replace(' ', '')
-
+                
                 temp_atom.index=len(self.atom)
                 self.atom.append(temp_atom)
 
 
     def read_gro (self,name_file):
 
-        f=open(name_file,'r')
+        ff=open(name_file,'r')
 
-        line=f.readline()                                          # Header of the gro file
+        line=ff.readline()                                          # Header of the gro file
 
-        line=f.readline()                                        
+        line=ff.readline()                                        
         self.num_atoms=int(line)
 
         for i in range(self.num_atoms):           
             
             temp_atom=cl_unit()
 
-            line=f.readline().split()
+            line=ff.readline().split()
             temp_atom.pdb_index=int(line[2])
             temp_atom.name=line[1]
-            temp_atom.resid_name=line[0][-3:]
-            temp_atom.resid_pdb_index=int(line[0][:-3]) 
+            temp_atom.resid.name=line[0][-3:]
+            temp_atom.resid.pdb_index=int(line[0][:-3]) 
 
             temp_atom.index=i           
 
@@ -259,33 +442,60 @@ class cl_set:
             print 'Enter filename: '
             print '      foo.write_pdb("foo.pdb")'
         else:
-            file=open(filename,'w')
-            for ii in self.ss_pdb:
-                file.write(str(ii))
+            if not filename.endswith('.pdb'): filename+='.pdb'
+            if path.exists(filename): 
+                print '# The file '+filename+' already exists.'
+                return
 
+            file=open(filename,'w')
+
+            a='HEADER    '+'> CREATED BY PYNORAMIX '+datetime.datetime.now().strftime("%Y-%m-%d %H:%M")+' <\n'
+            file.write(str(a))
+
+            for ii in self.pdb_header: file.write(str(ii))
+            
+            for ii in self.pdb_ss:     file.write(str(ii))
+
+            dct_aux={'ATOM': 'ATOM  ', 'HETATM': 'HETATM'}
+            
+            new_index=0
             for ii in range(self.num_atoms):
-                a='ATOM  '                                  # 1-6
-                a+="%5d" % (ii+1)                           # 7-11
-                #a+="%5d" % self.atom[ii].pdb_index          # 7-11
-                a+=' '                                      # 12
-                a+="%-4s" % self.atom[ii].name           # 13-16
-                a+=' '                                      # 17
-                a+="%3s" % self.atom[ii].resid_name          # 18-20
-                a+=' '                                      # 21
-                a+="%1s" % self.atom[ii].chain               # 22
-                a+="%4d" % self.atom[ii].resid_pdb_index     # 23-26
-                a+=' '                                      # 27
-                a+='   '                                    # 28-30
-                a+="%8.3f" % float(self.coors[0].xyz[ii][0]) # 31-38
-                a+="%8.3f" % float(self.coors[0].xyz[ii][1]) # 39-46
-                a+="%8.3f" % float(self.coors[0].xyz[ii][2]) # 47-54
-                a+="%6.2f" % self.atom[ii].occup             # 55-60
-                a+="%6.2f" % self.atom[ii].bfactor           # 61-66
-                a+='          '                             # 67-76
-                a+="%2s" % self.atom[ii].elem_symb           # 77-78
-                a+="%2s" % self.atom[ii].charge              # 79-80
+                new_index+=1
+                a=dct_aux[self.atom[ii].type_pdb]              # 1-6
+                a+="%5d" % (new_index)                         # 7-11
+                #a+="%5d" % self.atom[ii].pdb_index            # 7-11
+                a+=' '                                         # 12
+                a+=' '+"%-3s" % self.atom[ii].name             # 13-16
+                a+=' '                                         # 17
+                a+="%3s" % self.atom[ii].resid.name            # 18-20
+                a+=' '                                         # 21
+                a+="%1s" % self.atom[ii].chain.name            # 22
+                a+="%4d" % self.atom[ii].resid.pdb_index       # 23-26
+                a+=' '                                         # 27
+                a+='   '                                       # 28-30
+                a+="%8.3f" % float(self.coors[0].xyz[ii][0])   # 31-38
+                a+="%8.3f" % float(self.coors[0].xyz[ii][1])   # 39-46
+                a+="%8.3f" % float(self.coors[0].xyz[ii][2])   # 47-54
+                a+="%6.2f" % self.atom[ii].occup               # 55-60
+                a+="%6.2f" % self.atom[ii].bfactor             # 61-66
+                a+='          '                                # 67-76
+                a+="%2s" % self.atom[ii].elem_symb             # 77-78
+                a+="%2s" % self.atom[ii].charge                # 79-80
                 a+='\n' 
                 file.write(str(a))         
+                if ii<(self.num_atoms-1):
+                    if self.atom[ii].type_pdb!=self.atom[ii+1].type_pdb or self.atom[ii].chain.name!=self.atom[ii+1].chain.name :
+                        new_index+=1
+                        a="TER   "
+                        a+="%5d" % (new_index)
+                        a+=' '
+                        a+='  '
+                        a+=' '                                         
+                        a+="%3s" % self.atom[ii].resid.name            
+                        a+='\n' 
+                        file.write(str(a))
+            a='END   '+'\n'
+            file.write(str(a))
             file.close()
         return None
 
@@ -304,14 +514,30 @@ class cl_set:
     # To handle coordinates
 
 
-    def load_coors (self,input_file,frame=None,begin=None,end=None):
+    def load_coors (self,input_file,frame=None,begin=None,end=None):  # This function needs to be polished.
 
         self.coors_file=input_file
         self.traj_mark=0
 
         if self.coors_file.endswith('pdb'):
-            temp_frame=cl_coors(self.file)
-            self.coors.append(temp_frame)
+
+            if frame==None:
+                if end==None:
+                    end=0
+                    for line in open(self.coors_file,'r'): 
+                        if line.startswith('MODEL'): 
+                            end+=1
+                    if end==0: end=1
+                if begin==None:
+                    begin=1
+                    
+                frame=[ii for ii in range(begin,end+1)]
+
+            if type(frame) in [int]: frame=[frame]
+
+            for ii in frame:
+                temp_frame=cl_coors(self.file,ii)
+                self.coors.append(temp_frame)
 
         elif self.coors_file.endswith('gro'):
             temp_frame=cl_coors(self.file)
@@ -332,13 +558,36 @@ class cl_set:
                     self.coors.append(temp_frame)
                 self.recent_frame=end
 
-    def delete_coors (self,begin=None,end=None,frame=None):
+        self.num_frames=len(self.coors)
+
+    def delete_coors (self,begin=None,end=None,frame=None):  # This function needs to be polished
         
         if frame==begin==end==None :
             del self.coors[:]
+            self.num_frames=0
+            return
+
+        if frame==None:
+
+            if end==None:
+                end=self.num_frames
+            if begin==None:
+                begin=1
+                    
+            frame=[ii for ii in range(begin,end+1)]
+
+        if type(frame) in [int]: frame=[frame]
+        frame.sort(); frame.reverse()
+
+        for ii in frame:
+            self.coors.__delitem__(ii-1)
+            self.num_frames-=1
 
 
-    # The functions, really...
+    # To handle the set
+
+    def selection(self,condition=None):
+        return make_selection(self,condition)
 
     def distance(self,pbc=False):
                 
@@ -375,89 +624,55 @@ class cl_set:
         #pylab.matshow(contact_map==False)
         return pylab.show()
 
+    def rms_fit(self,set_reference=None,selection=None,new_set=True):
+        
+        coors_original=make_selection(self,selection).coors[0].xyz
+        coors_reference=make_selection(set_reference,selection).coors[0].xyz
+
+        if len(coors_original)!=len(coors_reference):
+            print '# Error: Different number of atoms'
+            return
+        
+        rot,center_ref,center_orig,rmsd,g=f.aux_funcs_general.min_rmsd(coors_reference,coors_original,len(coors_original))
+        
+        coors_original=self.coors[0].xyz
+        coors_new=f.aux_funcs_general.rot_trans(coors_original,rot,center_orig,center_ref,len(coors_original))
+
+        if new_set:
+            fitted_set=copy.deepcopy(self)
+            fitted_set.coors[0].xyz=coors_new
+#            fitted_set.pdb_header="Mensaje del fitteo"
+            fitted_set.rmsd=rmsd
+
+            return fitted_set
+        else:
+            "ToDo: Save the fitted coordinates as new frame -coors[i+1]- or as fitted_coors[i]"
+            "or... replace the old coordinates"
+            # Use coors_new
+
+        return
+
+    def displ_vector(self,set_reference=None):
+
+        self.d_vector=set_reference.coors[0].xyz - self.coors[0].xyz
 
 
 
 
 
+#### END CLASSES
+#######################################################
+#######################################################
+
+
+
+#######################################################
 #######################################################
 #### EXTERNAL OBJECTS AND FUNCTIONS
-#######################################################
-
-
     
-###
-### Classes
-###
-
-class cl_unit():
-#--------------------------------------------------------------
-    def __init__(self):
-        '''Initialize an atom object'''
-
-
-        # > Topological properties
-        self.name=''
-        self.index=0
-        self.pdb_index=0
-        self.resid_name=''
-        self.resid_pdb_index=0
-        self.resid_index=0
-        self.chain=''
-        self.covalent_bond=[]
-        self.alt_loc=0
-        self.code_ins_res=0
-        self.seg_ident=''
-        self.elem_symb=''
-        self.type_pdb=''
-
-        # > Physical and Chemical properties
-        self.bfactor=0.0
-        self.acceptor=False          # True or false
-        self.donor=False             # True or false
-        self.polar_class='Nothing'       # A or D or nothing
-        self.polarizability=False    # True of falsel
-        self.mass=0.0
-        self.charge=0.0
-        self.vdw=0.0
-        self.occup=0.0
-
-
-class cl_water(cl_set):
-    '''Water specific attributes and methods'''
-
-    def __init__( self ,water_model=None):
-
-        self.name=''
-        self.index=''
-        self.pdb_index=''
-        self.list_atoms=''
-        self.water_model=water_model
-                
-        self.O=''
-        self.H1=''
-        self.H2=''
-        self.uvect_norm=[]
-        #def get_uvect_norm(self):
-        
-    pass
-
-
-class cl_residue(cl_set):
-
-    def __init__( self ):
-
-        self.index=''
-        self.list_atoms=''
-        self.pdb_index=''
-        self.name=''
-
-    pass
-
-
-###
-### Functions
-###
+####
+#### Functions
+####
 
 
 
@@ -473,12 +688,19 @@ def xtc2bin(xtc_name,bin_name):
 
 
 
-    #######################################################
-    #### Selection algorithm:    
-    #######################################################
+#######################################################
+####### Selection algorithm:    (Any suggestion to Roman)
+
 
 def make_selection(system,condition):                 #####system - your system
-						       #####condition - keywords to select,as example: 	OO=make_selection2(wbox,'atom_name (OW or MW) and resid_name (HO4)')
+						       #####condition - keywords to select,as example: 	OO=make_selection2(wbox,'atom_name (OW or MW) and resid.name (HO4)')
+
+    # Some Keywords:
+    if condition=='backbone':
+        condition='atom_name (N or CA or CB)'
+    if condition=='all':
+        condition=system.list_atoms
+
     if type(condition)==str:                           #####also can work with list of indexes	
 
         condition=prolong_string(condition)
@@ -498,19 +720,30 @@ def make_selection(system,condition):                 #####system - your system
 				last_list.append(aux_lists[jj][ii])
 			
 				if last_list.count(aux_lists[jj][ii])==Num_con:
-    					ll2.append(ii)
+    					ll2.append(aux_lists[jj][ii])
 
 		else:
 			 for ii in range(len(aux_lists[jj])):
 				last_list.append(aux_lists[jj][ii])
 
-    	sux=appending_sel(system,ll2)
+    	sux=extracting_sel(system,ll2)
+
 
     elif type(condition) in [list,ndarray,tuple]:      ##########if you want to select from list with indexes of atoms
         LIST=condition
-        sux=appending_sel(system,LIST)
+        sux=extracting_sel(system,LIST)
+
+
     else:
         print "ERROR sel01"
+        return
+    
+
+    sux.num_frames=len(sux.coors)   ### Global variables
+    sux.chains=list(set([ii.chain.name for ii in sux.atom]))
+    sux.num_chains=len(sux.chains)
+    sux.parent=labels_parent(system,condition)
+    sux.selection=True
 
     return sux
 
@@ -527,9 +760,7 @@ def good_select(system,condition):
 				
     for jj in range(len(possib)):		      #making selection using auxiliary functions g_parameter; if you want to select by new parameter - you need to add your own function
 	    if param=='atom_name':  
-		
                 list_of_ind=g_atom_name(system,possib[jj].replace(' ',''),list_of_ind) 
-              
             elif param=='resid_name':
                 list_of_ind=g_resid_name(system,possib[jj].replace(' ',''),list_of_ind)
             elif param=='donors':
@@ -540,6 +771,8 @@ def good_select(system,condition):
                 list_of_ind=g_acceptors(system,possib[jj].replace(' ',''),list_of_ind)
             elif param=='atom_index':
                 list_of_ind=g_atom_index(system,possib[jj].replace(' ',''),list_of_ind)
+            elif param=='chain':
+                list_of_ind=g_chain(system,possib[jj].replace(' ',''),list_of_ind)
             else:
                 print 'ERROR sel02: unknown parameter ',param
 
@@ -572,7 +805,7 @@ def g_atom_name(system,possib,list_of_ind):
 def g_resid_name(system,possib,list_of_ind):    
         for ii in range(system.num_atoms):
 
-            if system.atom[ii].resid_name==possib:
+            if system.atom[ii].resid.name==possib:
                
                 list_of_ind.append(ii)
              
@@ -609,21 +842,38 @@ def g_atom_index(system,possib,list_of_ind):
         
     return list_of_ind
 
-##############appending from list of atom indexes###########################
+def g_chain(system,possib,list_of_ind):    
+        for ii in range(system.num_atoms):
+            
+            if system.atom[ii].chain==possib:
+                
+                list_of_ind.append(ii)
+                
+        return list_of_ind
 
-def appending_sel(syst,list_of_ind):   
+##############extracting from list of atom indexes###########################
+
+def extracting_sel(syst,list_of_ind):   
     temp_set=cl_set()
 
     ############Appending atoms to selection#################
-    for ii in range(syst.num_atoms):
-        if ii in list_of_ind:
-           temp_set.atom.append(syst.atom[ii])
-      
+
+
+    for ii in list_of_ind:
+        temp_set.atom.append(syst.atom[ii])
+
+
+    #########################Another attrs#####3
 
     # Building global attributes:
-    temp_set.num_atoms=len(temp_set.atom)
 
- 
+    temp_set.num_atoms=len(temp_set.atom)
+    temp_set.num_waters=''
+    temp_set.list_atoms=list(list_of_ind)
+    temp_set.list_atoms.sort()
+    temp_set.num_residues=''
+    
+
     ##########Appending coordinates to selection#########################
     for jj in syst.coors:
         temp_frame=cl_coors()
@@ -635,14 +885,20 @@ def appending_sel(syst,list_of_ind):
                         temp_frame.xyz.append(jj.xyz[ii])
         temp_set.coors.append(temp_frame)
 
-   
+    for ii in temp_set.coors :
+        ii.xyz=npy.array(ii.xyz,order='Fortran')
          
     return temp_set
 
 
 
+####### END Selection algorithm
+#######################################################
 
 
+#### END EXTERNAL FUNCTIONS
+#######################################################
+#######################################################
 
 
 
