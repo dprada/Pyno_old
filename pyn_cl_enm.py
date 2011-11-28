@@ -1,6 +1,7 @@
 from numpy import *
 import pyn_fort_enm as f_enm
 import pyn_fort_general as f
+from pyn_cl_set import *
 import pylab
 
 
@@ -436,7 +437,7 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 prov_system.chains.append(aa.chain)
 
 
-    num_nodes=len(anm.eigenvects[:])
+    num_nodes=len(anm.eigenvects_3d[:])
     list_modes=[]
 
     if mode=='all':
@@ -505,7 +506,7 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 if ii.chain == chch:
                     extreme=ii.index
                     extreme=in_net.index(extreme)
-            ant=anm.eigenvects[ind_mode-1][kk]
+            ant=anm.eigenvects_3d[ind_mode-1][kk]
             for ii in prov_system.atom:
                 if ii.chain == chch:
                     jj+=1
@@ -516,10 +517,10 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                         net_end=net_initial+1
                         if net_end>extreme:
                             interr=-1
-                            ant[:]=anm.eigenvects[ind_mode-1][kk]
+                            ant[:]=anm.eigenvects_3d[ind_mode-1][kk]
                         else:
-                            aaa=anm.eigenvects[ind_mode-1][net_initial]
-                            bbb=anm.eigenvects[ind_mode-1][net_end]
+                            aaa=anm.eigenvects_3d[ind_mode-1][net_initial]
+                            bbb=anm.eigenvects_3d[ind_mode-1][net_end]
                         kk+=1
                     if interr==-1:
                         osc[jj][:]=ant[:]
@@ -539,8 +540,10 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
             a='MODEL '+str(frame)+'\n'
             file.write(str(a))
 
-            for ii in system.ss_pdb:
-                file.write(str(ii))
+            try:
+                for ii in system.ss_pdb:
+                    file.write(str(ii))
+            except: 1
 
             for ii in range(prov_system.num_atoms):
                 a='ATOM  '                                 # 1-6
@@ -549,10 +552,10 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 a+=' '                                     # 12
                 a+=' '+"%-3s" % prov_system.atom[ii].name  # 13-16
                 a+=' '                                     # 17
-                a+="%3s" % prov_system.atom[ii].resid_name # 18-20
+                a+="%3s" % prov_system.atom[ii].resid.name # 18-20
                 a+=' '                                     # 21
-                a+="%1s" % prov_system.atom[ii].chain      # 22
-                a+="%4d" % prov_system.atom[ii].resid_pdb_index # 23-26
+                a+="%1s" % prov_system.atom[ii].chain.name # 22
+                a+="%4d" % prov_system.atom[ii].resid.pdb_index # 23-26
                 a+=' '                                     # 27
                 a+='   '                                   # 28-30
                 a+="%8.3f" % float(prov_system.coors[0].xyz[ii][0]+amplitude*sin(delta_f*frame)*osc[ii][0]) # 31-38
@@ -563,7 +566,7 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 a+='          '                            # 67-76
                 a+="%2s" % prov_system.atom[ii].elem_symb  # 77-78
                 a+="%2s" % prov_system.atom[ii].charge     # 79-80
-#                a+='\n' 
+                a+='\n'
                 file.write(str(a))
 
             a='ENDMDL \n'
