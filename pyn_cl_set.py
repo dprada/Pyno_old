@@ -171,7 +171,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.dimensionality=0           # dimensionality (num_atoms*3)
 
         # > Coordinates
-        self.coors=[]                   # list of coordinates (objects: cl_coors)
+        self.frame=[]                   # list of coordinates (objects: cl_coors)
         self.num_frames=0               # number of frames or models
         self.recent_frame=0             # auxilary index of the last frame analysed
         self.dist_matrix=[]             # distance matrix (This should go to cl_coors?)
@@ -197,6 +197,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             else:
                 print '# The file '+input_file+' exists in the local folder.'
+                print '# Loading it...'
 
             self.file=input_file
 
@@ -373,6 +374,11 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
     def info(self):
 
+        self.num_atoms=len(self.atom)
+        self.num_residues=len(self.resid)
+        self.num_chains=len(self.chain)
+        self.num_waters=len(self.water)
+        self.num_frames=len(self.frame)
         print '#','System created from the file ',self.file,':'
         print '#',self.num_atoms,' atoms'
         print '#',self.num_residues,' residues'
@@ -476,9 +482,9 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 a+="%4d" % self.atom[ii].resid.pdb_index       # 23-26
                 a+=' '                                         # 27
                 a+='   '                                       # 28-30
-                a+="%8.3f" % float(self.coors[0].xyz[ii][0])   # 31-38
-                a+="%8.3f" % float(self.coors[0].xyz[ii][1])   # 39-46
-                a+="%8.3f" % float(self.coors[0].xyz[ii][2])   # 47-54
+                a+="%8.3f" % float(self.frame[0].coors[ii][0])   # 31-38
+                a+="%8.3f" % float(self.frame[0].coors[ii][1])   # 39-46
+                a+="%8.3f" % float(self.frame[0].coors[ii][2])   # 47-54
                 a+="%6.2f" % self.atom[ii].occup               # 55-60
                 a+="%6.2f" % self.atom[ii].bfactor             # 61-66
                 a+='          '                                # 67-76
@@ -540,33 +546,33 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             for ii in frame:
                 temp_frame=cl_coors(self.file,ii)
-                self.coors.append(temp_frame)
+                self.frame.append(temp_frame)
 
         elif self.coors_file.endswith('gro'):
             temp_frame=cl_coors(self.file)
-            self.coors.append(temp_frame)
+            self.frame.append(temp_frame)
 
         elif self.coors_file.endswith('bin'):
             if begin==None and frame==None and end==None:
                 temp_frame=cl_coors(self.coors_file,self.recent_frame)
-                self.coors.append(temp_frame)
+                self.frame.append(temp_frame)
                 self.recent_frame+=1
             elif begin==None and end==None and frame!=None:
                 temp_frame=cl_coors(self.coors_file,frame)
-                self.coors.append(temp_frame)
+                self.frame.append(temp_frame)
                 self.recent_frame=frame
             elif begin!=None and end!=None:
                 for ii in range(begin,end):
                     temp_frame=cl_coors(self.coors_file,ii)
-                    self.coors.append(temp_frame)
+                    self.frame.append(temp_frame)
                 self.recent_frame=end
 
-        self.num_frames=len(self.coors)
+        self.num_frames=len(self.frame)
 
     def delete_coors (self,begin=None,end=None,frame=None):  # This function needs to be polished
         
         if frame==begin==end==None :
-            del self.coors[:]
+            del self.frame[:]
             self.num_frames=0
             return
 
@@ -583,7 +589,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         frame.sort(); frame.reverse()
 
         for ii in frame:
-            self.coors.__delitem__(ii-1)
+            self.frame.__delitem__(ii-1)
             self.num_frames-=1
 
 
@@ -594,9 +600,9 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
     def distance(self,pbc=False):
                 
-        for frame in self.coors:
+        for frame in self.frame:
 
-            dist_frame=f.aux_funcs_general.dist(pbc,frame.xyz,frame.box,frame.xyz,self.num_atoms,self.num_atoms)
+            dist_frame=f.aux_funcs_general.dist(pbc,frame.coors,frame.box,frame.coors,self.num_atoms,self.num_atoms)
             
         self.dist_matrix.append(dist_frame)
 
@@ -610,11 +616,11 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             ident=False
 
         if limit != 0:
-            neighbs=f.aux_funcs_general.neighbs_limit(pbc,ident,limit,self.coors[0].xyz,self.coors[0].box,system2.coors[0].xyz,self.num_atoms,system2.num_atoms)
+            neighbs=f.aux_funcs_general.neighbs_limit(pbc,ident,limit,self.frame[0].coors,self.frame[0].box,system2.frame[0].coors,self.num_atoms,system2.num_atoms)
         
         else:
-            print type(self.coors[0].xyz[1][:]),self.coors[0].xyz[1][:],system2.num_atoms
-            neighbs=f.aux_funcs_general.neighbs_dist(pbc,ident,dist,self.coors[0].xyz,self.coors[0].box,system2.coors[0].xyz,system2.num_atoms)
+            print type(self.frame[0].coors[1][:]),self.frame[0].coors[1][:],system2.num_atoms
+            neighbs=f.aux_funcs_general.neighbs_dist(pbc,ident,dist,self.frame[0].coors,self.frame[0].box,system2.frame[0].coors,system2.num_atoms)
 
 
         return neighbs
@@ -627,10 +633,10 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         #pylab.matshow(contact_map==False)
         return pylab.show()
 
-    def rms_fit(self,set_reference=None,selection=None,new_set=True):
+    def rms_fit(self,set_reference=None,selection=None,new=False):
         
-        coors_original=make_selection(self,selection).coors[0].xyz
-        coors_reference=make_selection(set_reference,selection).coors[0].xyz
+        coors_original=make_selection(self,selection).frame[0].coors
+        coors_reference=make_selection(set_reference,selection).frame[0].coors
 
         if len(coors_original)!=len(coors_reference):
             print '# Error: Different number of atoms'
@@ -638,26 +644,28 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         
         rot,center_ref,center_orig,rmsd,g=f.aux_funcs_general.min_rmsd(coors_reference,coors_original,len(coors_original))
         
-        coors_original=self.coors[0].xyz
+        coors_original=self.frame[0].coors
         coors_new=f.aux_funcs_general.rot_trans(coors_original,rot,center_orig,center_ref,len(coors_original))
 
-        if new_set:
+        if new:
             fitted_set=copy.deepcopy(self)
-            fitted_set.coors[0].xyz=coors_new
+            fitted_set.frame[0].coors=coors_new
 #            fitted_set.pdb_header="Mensaje del fitteo"
             fitted_set.rmsd=rmsd
 
             return fitted_set
         else:
-            "ToDo: Save the fitted coordinates as new frame -coors[i+1]- or as fitted_coors[i]"
-            "or... replace the old coordinates"
+            self.frame[0].coors=copy.deepcopy(coors_new)
+            self.rmsd=rmsd
+
+        print '# RMSD fitting:',rmsd
             # Use coors_new
 
         return
 
     def displ_vector(self,set_reference=None):
 
-        self.d_vector=set_reference.coors[0].xyz - self.coors[0].xyz
+        self.d_vector=set_reference.frame[0].coors - self.frame[0].coors
 
 
 
@@ -742,7 +750,7 @@ def make_selection(system,condition):                 #####system - your system
         return
     
 
-    sux.num_frames=len(sux.coors)   ### Global variables
+    sux.num_frames=len(sux.frame)   ### Global variables
     sux.chains=list(set([ii.chain.name for ii in sux.atom]))
     sux.num_chains=len(sux.chains)
     sux.parent=labels_parent(system,condition)
@@ -878,18 +886,18 @@ def extracting_sel(syst,list_of_ind):
     
 
     ##########Appending coordinates to selection#########################
-    for jj in syst.coors:
+    for jj in syst.frame:
         temp_frame=cl_coors()
         temp_frame.box=jj.box
   
         for ii in range(syst.num_atoms):         
                     if ii in list_of_ind:
                      
-                        temp_frame.xyz.append(jj.xyz[ii])
-        temp_set.coors.append(temp_frame)
+                        temp_frame.coors.append(jj.coors[ii])
+        temp_set.frame.append(temp_frame)
 
-    for ii in temp_set.coors :
-        ii.xyz=npy.array(ii.xyz,order='Fortran')
+    for ii in temp_set.frame :
+        ii.coors=npy.array(ii.coors,order='Fortran')
          
     return temp_set
 

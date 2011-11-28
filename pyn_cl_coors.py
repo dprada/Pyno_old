@@ -11,7 +11,7 @@ class cl_coors:
         self.precision=0
         self.model=''
 
-        self.xyz=[]
+        self.coors=[]
         self.box=npy.zeros(shape=(3,3),order='Fortran')
         if file_input!=None:
 
@@ -27,10 +27,10 @@ class cl_coors:
             if self.file.endswith('bin'):
                 self.read_bin(self.file,frame)
 
-            self.xyz=npy.array(self.xyz,order='Fortran')
+            self.coors=npy.array(self.coors,order='Fortran')
         
             if self.file.endswith('bin') or self.file.endswith('gro') or self.file.endswith('xtc'):
-                self.xyz=10.0*self.xyz
+                self.coors=10.0*self.coors
                 self.box=10.0*self.box
 
 
@@ -53,7 +53,7 @@ class cl_coors:
             if (ii[0] in ['ATOM','HETATM']) and model==frame :
 
                 aux=(float(line[30:38]),float(line[38:46]),float(line[46:54]))
-                self.xyz.append(aux)
+                self.coors.append(aux)
                 
             if ii[0]=='MODEL': 
                 model=int(ii[1])
@@ -75,7 +75,7 @@ class cl_coors:
 
         for i in range(num_atoms): 
             line=f.readline().split()
-            self.xyz.append(map(float,line[3:6]))
+            self.coors.append(map(float,line[3:6]))
 
         line=f.readline().split()              # Reading the size of the box
         
@@ -144,7 +144,7 @@ class cl_coors:
         for ii in range(0,3*N_A,3):
             aux=temp[ii:ii+3]
             
-            self.xyz.append(aux)
+            self.coors.append(aux)
         self.precision=stc.unpack('f',self.f_traj.read(4))[0]             # Precision of the trajectory
        
         self.f_traj.close()

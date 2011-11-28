@@ -32,7 +32,7 @@ class gnm():
     def mk_contact_map(self,system,cutoff):
 
         self.system=system
-        comap=f_enm.contact_map(cutoff,system.coors[0].xyz,system.num_atoms)
+        comap=f_enm.contact_map(cutoff,system.frame[0].coors,system.num_atoms)
         return comap
 
     def fitt_bfacts(self):
@@ -182,6 +182,7 @@ class anm():
     def __init__(self,system=None,cutoff=10.0,contact_map=None):
 
         self.num_nodes=None       # Number of nodes
+        self.num_modes=None       # Number of modes
         self.contact_map=None     # Contact map (real matrix= kij; kij=force constant ij)
         self.parent=system        # System analysed
         self.eigenvals=None       # eigenvalues
@@ -217,7 +218,7 @@ class anm():
 
     def build(self,system):
 
-        return f_enm.anm(self.contact_map,system.coors[0].xyz,len(self.contact_map[0]))
+        return f_enm.anm(self.contact_map,system.frame[0].coors,len(self.contact_map[0]))
 
     def rebuild(self):
 
@@ -236,7 +237,7 @@ class anm():
     def make_contact_map(self,system,cutoff):
 
         self.system=system
-        comap=f_enm.contact_map(cutoff,system.coors[0].xyz,system.num_atoms)
+        comap=f_enm.contact_map(cutoff,system.frame[0].coors,system.num_atoms)
         return comap
 
     def fitt_bfacts(self):
@@ -355,10 +356,10 @@ class anm():
         return pylab.show()
 
 
-    def build_correl(self,modes='ALL'):
+    def build_correl(self,modes='all'):
 
         list_modes=[]
-        if modes=='ALL':
+        if modes=='all':
             num_modes=3*len(self.contact_map)
             for ii in range(num_modes):
                 list_modes.append(ii+1)
@@ -369,10 +370,9 @@ class anm():
             num_modes=len(modes)
             list_modes=list(modes)
 
-        num_nodes=len(self.contact_map[0])
-        self.correl=f_enm.correlation(self.eigenvects,self.eigenvals,list_modes,num_nodes,num_modes)
+        self.correl=f_enm.correlation(self.eigenvects,self.eigenvals,list_modes,self.num_nodes,num_modes)
 
-    def involv_coefficient(self,modes='ALL',vect=None):
+    def involv_coefficient(self,modes='all',vect=None):
 
         if vect==None:
             print 'Error: vect=None'
@@ -381,7 +381,7 @@ class anm():
         self.ic={}
         list_modes=[]
         
-        if modes=='ALL':
+        if modes=='all':
             for ii in range(self.num_modes):
                 list_modes.append(ii+1)
         elif type(modes)==int:
@@ -493,8 +493,8 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 if interr==-1:
                     tt[jj]=1.0
                 else:
-                    tt[jj]=dot((prov_system.coors[0].xyz[jj]-prov_system.coors[0].xyz[initial]),(prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial]))
-                    tt[jj]=tt[jj]/(dot((prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial]),(prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial])))
+                    tt[jj]=dot((prov_system.frame[0].coors[jj]-prov_system.frame[0].coors[initial]),(prov_system.frame[0].coors[end]-prov_system.frame[0].coors[initial]))
+                    tt[jj]=tt[jj]/(dot((prov_system.frame[0].coors[end]-prov_system.frame[0].coors[initial]),(prov_system.frame[0].coors[end]-prov_system.frame[0].coors[initial])))
 
 
     for ind_mode in list_modes :
@@ -528,8 +528,12 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                         osc[jj][:]=aaa[:]+(bbb[:]-aaa[:])*tt[jj]
             
 
-        file_name=prefix+'_anm_'+str(ind_mode)+'.pdb'
+        if output==None:
+            file_name=prefix+'_anm_'+str(ind_mode)+'.pdb'
+        else:
+            file_name=output
         file=open(file_name,'w')
+
         a='HEADER    '+prefix+'     ANM: Mode '+str(ind_mode)+'\n'
         file.write(str(a))
 
@@ -558,9 +562,9 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 a+="%4d" % prov_system.atom[ii].resid.pdb_index # 23-26
                 a+=' '                                     # 27
                 a+='   '                                   # 28-30
-                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][0]+amplitude*sin(delta_f*frame)*osc[ii][0]) # 31-38
-                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][1]+amplitude*sin(delta_f*frame)*osc[ii][1]) # 39-46
-                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][2]+amplitude*sin(delta_f*frame)*osc[ii][2]) # 47-54
+                a+="%8.3f" % float(prov_system.frame[0].coors[ii][0]+amplitude*sin(delta_f*frame)*osc[ii][0]) # 31-38
+                a+="%8.3f" % float(prov_system.frame[0].coors[ii][1]+amplitude*sin(delta_f*frame)*osc[ii][1]) # 39-46
+                a+="%8.3f" % float(prov_system.frame[0].coors[ii][2]+amplitude*sin(delta_f*frame)*osc[ii][2]) # 47-54
                 a+="%6.2f" % prov_system.atom[ii].occup    # 55-60
                 a+="%6.2f" % prov_system.atom[ii].bfactor  # 61-66
                 a+='          '                            # 67-76
