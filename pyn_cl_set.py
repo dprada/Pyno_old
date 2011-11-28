@@ -154,7 +154,7 @@ class cl_set(labels_set):               # The suptra-estructure: System (waters+
         self.file_hbonds=''             # still not useful -do not remove-
         self.file_mss=''                # still not useful -do not remove-
         self.file_shell=''              # still not useful -do not remove-
-        self.selection=False            # is the set a selection (a mirror -pointer- of a parent set)
+        #self.selection=False            # is the set a selection (a mirror -pointer- of a parent set)
         
         # > Topological properties
         self.atom=[]                    # list of atoms    (objects: cl_unit)
