@@ -259,8 +259,9 @@ SUBROUTINE anm (contact,coors,num_nodes,values,vectors,freqs,bfact,invers,correl
   aux=0.0d0
 
 
+  ! The contact matrix is a real object. (false=0.0, true=1.0 or kij)
 
-  !contact comes from a boolean matrix in python. F2py always translates booleans as integers (false=0, true=1)
+  !! Sub matrix Hij:
 
   DO i=1,num_nodes
      DO j=i+1,num_nodes
@@ -273,7 +274,7 @@ SUBROUTINE anm (contact,coors,num_nodes,values,vectors,freqs,bfact,invers,correl
               DO g=1,dim
                  val_aux2=0.0d0
                  val_aux2=-(coors(i,k)-coors(j,k))*(coors(i,g)-coors(j,g))
-                 val_aux2=val_aux2/val_aux
+                 val_aux2=(val_aux2/val_aux)*contact(i,j)   !! Here it is the for constant kij
                  matrix(ii+k,jj+g)=val_aux2
                  matrix(jj+g,ii+k)=val_aux2
               END DO
@@ -281,6 +282,8 @@ SUBROUTINE anm (contact,coors,num_nodes,values,vectors,freqs,bfact,invers,correl
         END IF
      END DO
   END DO
+
+  !! Sub matrix Hii
 
   DO i=1,num_nodes
      ii=dim*(i-1)
@@ -316,9 +319,6 @@ SUBROUTINE anm (contact,coors,num_nodes,values,vectors,freqs,bfact,invers,correl
   
   freqs=sqrt(abs(values))
 
-  !DO i=1,dim_aux
-  !   print*,vectors(i,7)
-  !END DO
   
   !Inverse matrix:
 
@@ -338,17 +338,16 @@ SUBROUTINE anm (contact,coors,num_nodes,values,vectors,freqs,bfact,invers,correl
      END DO
   END DO
 
-  !Compruebo la inversa:
-!  aux=0.0d0
-!  DO i=1,dim_aux
-!     DO j=1,dim_aux!        aux(i,j)=dot_product(invers(i,:),matrix_bck(:,j))
-!        print*,i,j,aux(i,j)
-!     END DO
-!  END DO
-
-!  aux=0.0d0
-!  aux=MATMUL(matrix_bck,invers)
-!  print*,aux
+  !Checking the inverse matrix:
+  !  aux=0.0d0
+  !  DO i=1,dim_aux
+  !     DO j=1,dim_aux!        aux(i,j)=dot_product(invers(i,:),matrix_bck(:,j))
+  !        print*,i,j,aux(i,j)
+  !     END DO
+  !  END DO
+  !  aux=0.0d0
+  !  aux=MATMUL(matrix_bck,invers)
+  !  print*,aux
 
   bfact=0.0d0
   !B Factors:

@@ -3,6 +3,12 @@ import pyn_fort_enm as f_enm
 import pyn_fort_general as f
 import pylab
 
+
+#####################################################################################
+##### Gaussian Network Model
+#####################################################################################
+
+
 class gnm():
     
     def __init__(self,system=None,cutoff=10.0):
@@ -11,7 +17,7 @@ class gnm():
 
         if system!=None:
             if type(system) in [list,ndarray]:
-                self.contact_map=array(system)
+                self.contact_map=array(contact_map,order='Fortran')
             else:
                 self.contact_map=self.mk_contact_map(system,cutoff)
             self.eigenvals,self.eigenvects,self.freqs,self.bfacts,self.inverse,self.correl=self.rebuild()
@@ -166,27 +172,45 @@ class gnm():
 
 
 
+#####################################################################################
+##### Anisotropic Network Model
+#####################################################################################
 
 class anm():
     
-    def __init__(self,system=None,cutoff=10.0):
+    def __init__(self,system=None,cutoff=10.0,contact_map=None):
 
-        self.contact_map=None
+        self.num_nodes=None       # Number of nodes
+        self.contact_map=None     # Contact map (real matrix= kij; kij=force constant ij)
+        self.parent=system        # System analysed
+        self.eigenvals=None       # eigenvalues
+        self.eigenvects=None      # eigenvectors as they come from the analysis vector: [x1,y1,z1,x2,y2,z2...]
+        self.eigenvects_3d=None   # eigenvectors 3d: Nx3 [[x1,y1,z1],[x2,y2,z2]...]
+        self.freqs=None           # frequencies (eigenvectors dimensionalized -fitting bfactors-)
+        self.inverse=None         # inverse matrix from single value decomposition
+        self.correl=None          # correlation matrix
 
-        if system!=None:
-            self.parent=system
-            if type(system) in [list,ndarray]:
-                self.contact_map=array(system)
-            else:
-                self.contact_map=self.mk_contact_map(system,cutoff)
-            self.eigenvals,self.eigenvects2,self.freqs,self.bfacts,self.inverse,self.correl=self.build(system)
-            self.eigenvects=zeros(shape=(len(self.contact_map)*3,len(self.contact_map),3))
+        if system==None and contact_map==None:                 # Condition in case of error
+            print 'Provide a system or a contact map:'
+            print 'anm(system=foo,cutoff=10.0)'
+            print 'anm(contact_map=matrix(real))'
+            return
+
+        if contact_map!=None:                                  # Building the contact map
+            self.contact_map=array(system,order='Fortran')
+        else:
+            self.contact_map=self.make_contact_map(system,cutoff)
+
+        self.num_nodes=len(self.contact_map)                   # Number of nodes
+        self.eigenvals,self.eigenvects,self.freqs,self.bfacts,self.inverse,self.correl=self.build(system) # analysis
+
+        self.eigenvects_3d=zeros(shape=(len(self.contact_map)*3,len(self.contact_map),3))  # eigenvectors_3d
             for aa in range(3*len(self.contact_map)):
                 for ii in range(len(self.contact_map)):
                     iii=(ii)*3
                     for jj in range(3):
                         jjj=iii+jj
-                        self.eigenvects[aa,ii,jj]=self.eigenvects2[aa,jjj]
+                        self.eigenvects_3d[aa,ii,jj]=self.eigenvects[aa,jjj]
 
             self.bfacts_pdb,self.factor,self.sqr_dev=self.fitt_bfacts()
             
@@ -196,19 +220,19 @@ class anm():
 
     def rebuild(self):
 
-        self.eigenvals,self.eigenvects2,self.freqs,self.bfacts,self.inverse,self.correl=self.build(self.parent)
-        self.eigenvects=zeros(shape=(len(self.contact_map)*3,len(self.contact_map),3))
+        self.eigenvals,self.eigenvects,self.freqs,self.bfacts,self.inverse,self.correl=self.build(self.parent)
+        self.eigenvects_3d=zeros(shape=(len(self.contact_map)*3,len(self.contact_map),3))
         for aa in range(3*len(self.contact_map)):
             for ii in range(len(self.contact_map)):
                 iii=(ii)*3
                 for jj in range(3):
                     jjj=iii+jj
-                    self.eigenvects[aa,ii,jj]=self.eigenvects2[aa,jjj]
+                    self.eigenvects_3d[aa,ii,jj]=self.eigenvects[aa,jjj]
 
         self.bfacts_pdb,self.factor,self.sqr_dev=self.fitt_bfacts()
         
 
-    def mk_contact_map(self,system,cutoff):
+    def make_contact_map(self,system,cutoff):
 
         self.system=system
         comap=f_enm.contact_map(cutoff,system.coors[0].xyz,system.num_atoms)
@@ -345,7 +369,7 @@ class anm():
             list_modes=list(modes)
 
         num_nodes=len(self.contact_map[0])
-        self.correl=f_enm.correlation(self.eigenvects2,self.eigenvals,list_modes,num_nodes,num_modes)
+        self.correl=f_enm.correlation(self.eigenvects,self.eigenvals,list_modes,num_nodes,num_modes)
 
     def involv_coefficient(self,modes='ALL',vect=None):
 
@@ -365,7 +389,7 @@ class anm():
             list_modes=modes
 
         for ii in list_modes:
-            self.ic[ii]=f.aux_funcs_general.proj3d(self.eigenvects[ii],vect,len(self.eigenvects[ii]))
+            self.ic[ii]=f.aux_funcs_general.proj3d(self.eigenvects_3d[ii],vect,len(self.eigenvects_3d[ii]))
 
         return
 
@@ -389,3 +413,163 @@ class anm():
             for ii in range(len(self.contact_map)):
                     f_vects.write("%s %f %f %f\n" %(self.system.atom[jj].pdb_index,self.eigenvects[aa,ii,0],self.eigenvects[aa,ii,1],self.eigenvects[aa,ii,2]))
                     f_vects.write(" \n")
+
+
+
+
+#####################################################################################
+##### Building pdb movie from Anisotropic Network Model
+#####################################################################################
+
+def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
+
+    prov_list=[]
+    for ii in system.atom:
+        if ii.name in ['N','CA','C','O'] and ii.type_pdb =='ATOM':
+            prov_list.append(ii.index)
+
+    prov_system=make_selection(system,prov_list)
+
+    for aa in prov_system.atom[:]:
+        if aa.type_pdb in ['ATOM']:
+            if aa.chain not in prov_system.chains:
+                prov_system.chains.append(aa.chain)
+
+
+    num_nodes=len(anm.eigenvects[:])
+    list_modes=[]
+
+    if mode=='all':
+        num_modes=num_modes
+        for ii in range(1,num_modes+1):
+            list_modes.append(ii)
+    elif type(mode)==int:
+        num_modes=1
+        list_modes.append(mode)
+    elif type(mode) in [list,tuple]:
+        num_modes=len(mode)
+        list_modes=list(mode)
+    
+    osc=zeros(shape=(prov_system.num_atoms,3))
+
+    prefix=system.name
+    if prefix[-1]=='.':
+        prefix=prefix[:-1]
+
+    in_net=[]
+    for ii in anm.system.atom:
+        in_net.append(ii.index)
+    in_syst=[]
+    for ii in prov_system.atom:
+        in_syst.append(ii.index)
+
+    tt=zeros(shape=(prov_system.num_atoms))
+
+
+    jj=-1
+
+    for chch in prov_system.chains :
+        interr=-1
+        for ii in anm.system.atom:
+            if ii.chain == chch:
+                extreme=ii.index
+                extreme=in_net.index(extreme)
+
+        for ii in prov_system.atom:
+            if ii.chain == chch:
+                jj+=1
+        
+                if ii.index in in_net:
+                    interr+=1
+                    net_initial=in_net.index(ii.index)
+                    net_end=net_initial+1
+                    if net_end>extreme:
+                        interr=-1
+                    else:
+                        initial=jj
+                        end=in_syst.index(in_net[net_end])
+
+                if interr==-1:
+                    tt[jj]=1.0
+                else:
+                    tt[jj]=dot((prov_system.coors[0].xyz[jj]-prov_system.coors[0].xyz[initial]),(prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial]))
+                    tt[jj]=tt[jj]/(dot((prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial]),(prov_system.coors[0].xyz[end]-prov_system.coors[0].xyz[initial])))
+
+
+    for ind_mode in list_modes :
+        kk=0
+        jj=-1
+        for chch in prov_system.chains :
+            interr=-1
+            for ii in anm.system.atom:
+                if ii.chain == chch:
+                    extreme=ii.index
+                    extreme=in_net.index(extreme)
+            ant=anm.eigenvects[ind_mode-1][kk]
+            for ii in prov_system.atom:
+                if ii.chain == chch:
+                    jj+=1
+        
+                    if ii.index in in_net:
+                        interr+=1
+                        net_initial=in_net.index(ii.index)
+                        net_end=net_initial+1
+                        if net_end>extreme:
+                            interr=-1
+                            ant[:]=anm.eigenvects[ind_mode-1][kk]
+                        else:
+                            aaa=anm.eigenvects[ind_mode-1][net_initial]
+                            bbb=anm.eigenvects[ind_mode-1][net_end]
+                        kk+=1
+                    if interr==-1:
+                        osc[jj][:]=ant[:]
+                    else:
+                        osc[jj][:]=aaa[:]+(bbb[:]-aaa[:])*tt[jj]
+            
+
+        file_name=prefix+'_anm_'+str(ind_mode)+'.pdb'
+        file=open(file_name,'w')
+        a='HEADER    '+prefix+'     ANM: Mode '+str(ind_mode)+'\n'
+        file.write(str(a))
+
+        delta_f=2.0*pi/(steps*1.0)
+
+        for frame in range(0,steps):
+
+            a='MODEL '+str(frame)+'\n'
+            file.write(str(a))
+
+            for ii in system.ss_pdb:
+                file.write(str(ii))
+
+            for ii in range(prov_system.num_atoms):
+                a='ATOM  '                                 # 1-6
+                a+="%5d" % (ii+1)                          # 7-11
+                #a+="%5d" % prov_system.atom[ii].pdb_index  # 7-11
+                a+=' '                                     # 12
+                a+=' '+"%-3s" % prov_system.atom[ii].name  # 13-16
+                a+=' '                                     # 17
+                a+="%3s" % prov_system.atom[ii].resid_name # 18-20
+                a+=' '                                     # 21
+                a+="%1s" % prov_system.atom[ii].chain      # 22
+                a+="%4d" % prov_system.atom[ii].resid_pdb_index # 23-26
+                a+=' '                                     # 27
+                a+='   '                                   # 28-30
+                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][0]+amplitude*sin(delta_f*frame)*osc[ii][0]) # 31-38
+                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][1]+amplitude*sin(delta_f*frame)*osc[ii][1]) # 39-46
+                a+="%8.3f" % float(prov_system.coors[0].xyz[ii][2]+amplitude*sin(delta_f*frame)*osc[ii][2]) # 47-54
+                a+="%6.2f" % prov_system.atom[ii].occup    # 55-60
+                a+="%6.2f" % prov_system.atom[ii].bfactor  # 61-66
+                a+='          '                            # 67-76
+                a+="%2s" % prov_system.atom[ii].elem_symb  # 77-78
+                a+="%2s" % prov_system.atom[ii].charge     # 79-80
+#                a+='\n' 
+                file.write(str(a))
+
+            a='ENDMDL \n'
+            file.write(str(a))
+
+        file.close() 
+
+
+    return
