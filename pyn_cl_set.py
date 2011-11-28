@@ -142,7 +142,7 @@ class cl_water(labels_set):             # Attributes of a water molecule
 ####
 
 
-class cl_set(labels_set):               # The suptra-estructure: System (waters+cofactors+proteins...)
+class molecule(labels_set):               # The suptra-estructure: System (waters+cofactors+proteins...)
 
     
     def __init__(self,input_file=None,download=None,coors=True,verbose=True):
@@ -158,8 +158,8 @@ class cl_set(labels_set):               # The suptra-estructure: System (waters+
         
         # > Topological properties
         self.atom=[]                    # list of atoms    (objects: cl_unit)
-        self.resid=[]                   # list of residues (objects: cl_set)
-        self.chain=[]                   # list of chains   (objects: cl_set)
+        self.resid=[]                   # list of residues (objects: molecule)
+        self.chain=[]                   # list of chains   (objects: molecule)
         self.chains=[]                  # list of chain names (strings)
         self.water=[]                   # list of waters   (objects: cl_water)
         self.water_model=''             # water model
@@ -854,7 +854,7 @@ def g_chain(system,possib,list_of_ind):
 ##############extracting from list of atom indexes###########################
 
 def extracting_sel(syst,list_of_ind):   
-    temp_set=cl_set()
+    temp_set=molecule()
 
     ############Appending atoms to selection#################
 
