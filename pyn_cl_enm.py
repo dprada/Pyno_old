@@ -205,15 +205,15 @@ class anm():
         self.eigenvals,self.eigenvects,self.freqs,self.bfacts,self.inverse,self.correl=self.build(system) # analysis
 
         self.eigenvects_3d=zeros(shape=(len(self.contact_map)*3,len(self.contact_map),3))  # eigenvectors_3d
-            for aa in range(3*len(self.contact_map)):
-                for ii in range(len(self.contact_map)):
-                    iii=(ii)*3
-                    for jj in range(3):
-                        jjj=iii+jj
-                        self.eigenvects_3d[aa,ii,jj]=self.eigenvects[aa,jjj]
+        for aa in range(3*len(self.contact_map)):
+            for ii in range(len(self.contact_map)):
+                iii=(ii)*3
+                for jj in range(3):
+                    jjj=iii+jj
+                    self.eigenvects_3d[aa,ii,jj]=self.eigenvects[aa,jjj]
 
-            self.bfacts_pdb,self.factor,self.sqr_dev=self.fitt_bfacts()
-            
+        self.bfacts_pdb,self.factor,self.sqr_dev=self.fitt_bfacts()
+
     def build(self,system):
 
         return f_enm.anm(self.contact_map,system.coors[0].xyz,len(self.contact_map[0]))
