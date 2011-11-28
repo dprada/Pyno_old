@@ -3,3 +3,4 @@
 - Check the displacement vector and the involvent coefficient (ENM)
 - Think about the concept 'parent'
 - Make two different functions: make_selection (mirror) and make_set_from_selection (no mirror)
+- Correct the syntaxis of Selection, do it closer to the terms already present in the program.
