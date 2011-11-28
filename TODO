@@ -6,3 +6,4 @@
 - Correct the syntaxis of Selection, do it closer to the terms already present in the program.
 - Add the posibility to create a new molecule (hard copy, not a pointer) with selection. 
 - Use pickle to save the normal modes analysis.
+- The function to build the enm movie needs to check if the file exists.
