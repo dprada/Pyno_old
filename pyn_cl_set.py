@@ -188,13 +188,16 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         # IF IT COMES FROM A FILE, DOES IT NEED TO BE DOWNLOADED?
 
         if download:
-            if not path.exists(download):
-                if not download.endswith('pdb'):
+            if not download.endswith('.pdb'):
                     download=download+'.pdb'
-                temp='wget -nv http://www.rcsb.org/pdb/files/'+download
+            input_file=download
+            if not path.exists(input_file):
+                temp='wget -nv http://www.rcsb.org/pdb/files/'+input_file
                 system(temp)
 
-            input_file=download
+            else:
+                print '# The file '+input_file+' exists in the local folder.'
+
             self.file=input_file
 
         # BUILDING THE SET FROM A FILE
