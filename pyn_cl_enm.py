@@ -181,6 +181,12 @@ class anm():
     
     def __init__(self,system=None,cutoff=10.0,contact_map=None):
 
+        if system==None and contact_map==None:                 # Condition in case of error
+            print 'Provide a system or a contact map:'
+            print 'anm(system=foo,cutoff=10.0)'
+            print 'anm(contact_map=matrix(real))'
+            return
+
         self.num_nodes=None       # Number of nodes
         self.num_modes=None       # Number of modes
         self.contact_map=None     # Contact map (real matrix= kij; kij=force constant ij)
@@ -191,12 +197,14 @@ class anm():
         self.freqs=None           # frequencies (eigenvectors dimensionalized -fitting bfactors-)
         self.inverse=None         # inverse matrix from single value decomposition
         self.correl=None          # correlation matrix
+        self.node=[]              # List of nodes
 
-        if system==None and contact_map==None:                 # Condition in case of error
-            print 'Provide a system or a contact map:'
-            print 'anm(system=foo,cutoff=10.0)'
-            print 'anm(contact_map=matrix(real))'
-            return
+        for atom in system.atom:
+            prov_node=labels_unit()
+            prov_node.name=atom.name
+            prov_node.index=atom.index
+            prov_node.pdb_index=atom.pdb_index
+            self.node.append(prov_node)
 
         self.system=system
         if contact_map!=None:                                  # Building the contact map
