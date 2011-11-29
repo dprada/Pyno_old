@@ -412,7 +412,7 @@ class anm():
         f_vects.write(" \n")
         for aa in range(3*len(self.contact_map)):
             for ii in range(len(self.contact_map)):
-                    f_vects.write("%s %f %f %f\n" %(self.system.atom[jj].pdb_index,self.eigenvects[aa,ii,0],self.eigenvects[aa,ii,1],self.eigenvects[aa,ii,2]))
+                    f_vects.write("%s %f %f %f\n" %(self.system.atom[jj].pdb_index,self.eigenvects_3d[aa,ii,0],self.eigenvects_3d[aa,ii,1],self.eigenvects_3d[aa,ii,2]))
                     f_vects.write(" \n")
 
 
