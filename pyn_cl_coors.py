@@ -6,7 +6,6 @@ class cl_coors:
     def __init__(self,file_input=None,frame=None):
         self.file=file_input
         self.time=0
-        self.frame=0
         self.step=0
         self.precision=0
         self.model=''

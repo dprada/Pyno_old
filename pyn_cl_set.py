@@ -81,7 +81,7 @@ class cl_unit(labels_unit):                     # Attributes of an atom
         self.chain=labels_unit()         # Chain which this atom belongs to.
         self.parent=None                # Selection which this atom comes from.
 
-        self.covalent_bond=[]           # List of atoms covalently bonded.
+        self.covalent_bonds=[]           # List of atoms covalently bonded.
         self.alt_loc=0                  # Alternate location (PDB)
         self.code_ins_res=0             # Code of insertion of residues (PDB)
         self.seg_ident=''               # Index segment (PDB)
@@ -569,7 +569,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
         self.num_frames=len(self.frame)
 
-    def delete_coors (self,begin=None,end=None,frame=None):  # This function needs to be polished
+    def delete_coors (self,frame=None,begin=None,end=None):  # This function needs to be polished
         
         if frame==begin==end==None :
             del self.frame[:]
@@ -583,13 +583,13 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             if begin==None:
                 begin=1
                     
-            frame=[ii for ii in range(begin,end+1)]
+            frame=[ii for ii in range(begin,end)]
 
         if type(frame) in [int]: frame=[frame]
         frame.sort(); frame.reverse()
 
         for ii in frame:
-            self.frame.__delitem__(ii-1)
+            self.frame.__delitem__(ii)
             self.num_frames-=1
 
 
