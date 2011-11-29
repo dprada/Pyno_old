@@ -422,7 +422,7 @@ class anm():
 ##### Building pdb movie from Anisotropic Network Model
 #####################################################################################
 
-def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
+def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
 
     prov_list=[]
     for ii in system.atom:
@@ -433,16 +433,15 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
 
     for aa in prov_system.atom[:]:
         if aa.type_pdb in ['ATOM']:
-            if aa.chain not in prov_system.chains:
-                prov_system.chains.append(aa.chain)
+            if aa.chain.name not in prov_system.chains:
+                prov_system.chains.append(aa.chain.name)
 
 
-    num_nodes=len(anm.eigenvects_3d[:])
+    num_modes=len(anm.eigenvects_3d[:])
     list_modes=[]
 
     if mode=='all':
-        num_modes=num_modes
-        for ii in range(1,num_modes+1):
+        for ii in range(num_modes):
             list_modes.append(ii)
     elif type(mode)==int:
         num_modes=1
@@ -472,12 +471,12 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
     for chch in prov_system.chains :
         interr=-1
         for ii in anm.system.atom:
-            if ii.chain == chch:
+            if ii.chain.name == chch:
                 extreme=ii.index
                 extreme=in_net.index(extreme)
 
         for ii in prov_system.atom:
-            if ii.chain == chch:
+            if ii.chain.name == chch:
                 jj+=1
         
                 if ii.index in in_net:
@@ -503,12 +502,12 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
         for chch in prov_system.chains :
             interr=-1
             for ii in anm.system.atom:
-                if ii.chain == chch:
+                if ii.chain.name == chch:
                     extreme=ii.index
                     extreme=in_net.index(extreme)
-            ant=anm.eigenvects_3d[ind_mode-1][kk]
+            ant=anm.eigenvects_3d[ind_mode][kk]
             for ii in prov_system.atom:
-                if ii.chain == chch:
+                if ii.chain.name == chch:
                     jj+=1
         
                     if ii.index in in_net:
@@ -517,10 +516,10 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                         net_end=net_initial+1
                         if net_end>extreme:
                             interr=-1
-                            ant[:]=anm.eigenvects_3d[ind_mode-1][kk]
+                            ant[:]=anm.eigenvects_3d[ind_mode][kk]
                         else:
-                            aaa=anm.eigenvects_3d[ind_mode-1][net_initial]
-                            bbb=anm.eigenvects_3d[ind_mode-1][net_end]
+                            aaa=anm.eigenvects_3d[ind_mode][net_initial]
+                            bbb=anm.eigenvects_3d[ind_mode][net_end]
                         kk+=1
                     if interr==-1:
                         osc[jj][:]=ant[:]
@@ -537,6 +536,10 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
         a='HEADER    '+prefix+'     ANM: Mode '+str(ind_mode)+'\n'
         file.write(str(a))
 
+        for ii in system.pdb_ss:
+            file.write(str(ii))
+ 
+
         delta_f=2.0*pi/(steps*1.0)
 
         for frame in range(0,steps):
@@ -544,10 +547,6 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
             a='MODEL '+str(frame)+'\n'
             file.write(str(a))
 
-            try:
-                for ii in system.ss_pdb:
-                    file.write(str(ii))
-            except: 1
 
             for ii in range(prov_system.num_atoms):
                 a='ATOM  '                                 # 1-6
@@ -570,7 +569,7 @@ def build_fluct_anm(system,anm,mode='all',output='None',amplitude=8.0,steps=60):
                 a+='          '                            # 67-76
                 a+="%2s" % prov_system.atom[ii].elem_symb  # 77-78
                 a+="%2s" % prov_system.atom[ii].charge     # 79-80
-                a+='\n'
+                #a+='\n'
                 file.write(str(a))
 
             a='ENDMDL \n'

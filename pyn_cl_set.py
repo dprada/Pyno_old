@@ -754,7 +754,8 @@ def make_selection(system,condition):                 #####system - your system
     sux.chains=list(set([ii.chain.name for ii in sux.atom]))
     sux.num_chains=len(sux.chains)
     sux.parent=labels_parent(system,condition)
-    sux.selection=True
+    #sux.selection=True
+    sux.pdb_ss=system.pdb_ss
 
     return sux
 
