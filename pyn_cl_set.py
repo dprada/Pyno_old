@@ -633,7 +633,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         #pylab.matshow(contact_map==False)
         return pylab.show()
 
-    def rms_fit(self,set_reference=None,selection=None,new=False):
+    def rms_fit(self,set_reference=None,selection='all',new=False):
         
         coors_original=make_selection(self,selection).frame[0].coors
         coors_reference=make_selection(set_reference,selection).frame[0].coors
@@ -710,7 +710,7 @@ def make_selection(system,condition):                 #####system - your system
     if condition=='backbone':
         condition='atom_name (N or CA or CB)'
     if condition=='all':
-        condition=system.list_atoms
+        condition=range(system.num_atoms)
 
     if type(condition)==str:                           #####also can work with list of indexes	
 
@@ -753,7 +753,7 @@ def make_selection(system,condition):                 #####system - your system
     sux.num_frames=len(sux.frame)   ### Global variables
     sux.chains=list(set([ii.chain.name for ii in sux.atom]))
     sux.num_chains=len(sux.chains)
-    sux.parent=labels_parent(system,condition)
+    #sux.parent=labels_parent(system,condition)
     #sux.selection=True
     sux.pdb_ss=system.pdb_ss
 
