@@ -148,6 +148,7 @@ SUBROUTINE correlation (vectors,values,lista,num_nodes,dim_lista,correl)
   DOUBLE PRECISION,DIMENSION(num_nodes*3,num_nodes*3),INTENT(IN)::vectors
   DOUBLE PRECISION,DIMENSION(num_nodes*3),INTENT(IN)::values
   INTEGER,DIMENSION(dim_lista),INTENT(IN)::lista
+  INTEGER,DIMENSION(dim_lista)::flista
 
   DOUBLE PRECISION,DIMENSION(num_nodes,num_nodes),INTENT(OUT)::correl
   DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::auto_correl
@@ -163,8 +164,10 @@ SUBROUTINE correlation (vectors,values,lista,num_nodes,dim_lista,correl)
   invers=0.0d0
   auto_correl=0.0d0
 
+  flista(:)=lista(:)+1
+
   DO ii=1,dim_lista
-     k=lista(ii)
+     k=flista(ii)
      DO i=1,dim_aux
         DO j=1,dim_aux
            
@@ -194,7 +197,7 @@ SUBROUTINE correlation (vectors,values,lista,num_nodes,dim_lista,correl)
            correl(i,j)=correl(i,j)+invers(ii+k,jj+k)
         END DO
 
-        correl(i,j)=correl(i,j)/(sqrt(auto_correl(i)*auto_correl(j)))
+        correl(i,j)=correl(i,j) !/(sqrt(auto_correl(i)*auto_correl(j)))
 
      END DO
   END DO

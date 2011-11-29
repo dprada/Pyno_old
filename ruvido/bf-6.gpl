@@ -1,0 +1,17 @@
+#! gnuplot
+se te pos enha eps col sol
+se key above
+se size .4,.4
+se xlabel "Resid"
+se ylabel "Bf"
+se mxtics 2
+se mytics 2
+
+p \
+'cap-ca128-8A.bf-6'i 0 u (1+$1):2 ti 'cap'       w l lw 1 lt 1,\
+'cap-ca128-8A.bf-6'i 1 u (1+$1):2 ti 'apo'       w l lw 1 lt 3,\
+'cap-ca128-8A.bf-6'i 2 u (1+$1):2 ti 'cap 2camp' w l lw 1 lt 5,\
+'cap-ca128-8A.bf-6'i 3 u (1+$1):2 ti 'apo 2camp' w l lw 1 lt 7,\
+"<echo 128 0; echo 128 50" ti '' w l lt 0
+
+

@@ -198,8 +198,9 @@ class anm():
             print 'anm(contact_map=matrix(real))'
             return
 
+        self.system=system
         if contact_map!=None:                                  # Building the contact map
-            self.contact_map=array(system,order='Fortran')
+            self.contact_map=array(contact_map,order='Fortran')
         else:
             self.contact_map=self.make_contact_map(system,cutoff)
 
@@ -236,7 +237,6 @@ class anm():
 
     def make_contact_map(self,system,cutoff):
 
-        self.system=system
         comap=f_enm.contact_map(cutoff,system.frame[0].coors,system.num_atoms)
         return comap
 
@@ -362,7 +362,7 @@ class anm():
         if modes=='all':
             num_modes=3*len(self.contact_map)
             for ii in range(num_modes):
-                list_modes.append(ii+1)
+                list_modes.append(ii)
         elif type(modes)==int:
             num_modes=1
             list_modes.append(modes)

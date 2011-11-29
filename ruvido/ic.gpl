@@ -1,0 +1,33 @@
+#! gnuplot
+se te pos enha eps col sol
+se size .4,.4
+se xlabel "Mode"
+se ylabel "Ic"
+se ytics .1
+se mxtics 2
+se mytics 2
+
+p [5:20]\
+'cap-ca128-8A.ic'i 0 u ($1+0.0):2 ti 'cap'       w l lw 4 lt 1,\
+'cap-ca128-8A.ic'i 1 u ($1+0.0):2 ti 'apo'       w l lw 4 lt 3,\
+'cap-ca128-8A.ic'i 2 u ($1+0.0):2 ti 'cap 2camp' w l lw 2 lt 1,\
+'cap-ca128-8A.ic'i 3 u ($1+0.0):2 ti 'apo 2camp' w l lw 2 lt 3
+
+exit
+
+
+p [5:20]\
+'cap-ca128-8A.ic'i 0 u ($1+0.0):2 ti 'cap'       w imp lt 1 lw 4,\
+'cap-ca128-8A.ic'i 1 u ($1+0.2):2 ti 'apo'       w imp lt 2 lw 4,\
+'cap-ca128-8A.ic'i 2 u ($1+0.4):2 ti 'cap 2camp' w imp lt 3 lw 4,\
+'cap-ca128-8A.ic'i 3 u ($1+0.6):2 ti 'apo 2camp' w imp lt 4 lw 4
+
+exit
+
+p \
+'cap-ca128-8A.ic'i 0 u ($1+0.0):2 ti 'cap'       w l lw 2 lt 1,\
+'cap-ca128-8A.ic'i 1 u ($1+0.1):2 ti 'apo'       w l lw 2 lt 3,\
+'cap-ca128-8A.ic'i 2 u ($1+0.2):2 ti 'cap 2camp' w l lw 1 lt 1,\
+'cap-ca128-8A.ic'i 3 u ($1+0.3):2 ti 'apo 2camp' w l lw 1 lt 3,\
+0
+
