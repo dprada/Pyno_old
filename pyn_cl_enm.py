@@ -444,8 +444,25 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
             if aa.chain.name not in prov_system.chains:
                 prov_system.chains.append(aa.chain.name)
 
+    ## building a reduced eigenvects if this is necessary:
 
-    num_modes=len(anm.eigenvects_3d[:])
+    num_modes=len(anm.eigenvects_3d[:])    
+    jj=0
+    for ii in range(anm.num_nodes):
+        if anm.node[ii].index in prov_list:
+            jj+=1
+
+    aux_vect_3d=npy.zeros(shape=(num_modes,jj,3),order='Fortran')
+
+    jj=-1
+    for ii in range(anm.num_nodes):
+        if anm.node[ii].index in prov_list:
+            jj+=1
+            aux_vect_3d[:,jj,:]=anm.eigenvects_3d[:,ii,:]
+
+    ## The 'anm.eigenvects_3d' has been replaced by aux_vect_3d[:,jj,:]
+    ## since this point.
+
     list_modes=[]
 
     if mode=='all':
@@ -466,7 +483,8 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
 
     in_net=[]
     for ii in anm.system.atom:
-        in_net.append(ii.index)
+        if ii.type_pdb in ['ATOM']: ## Added
+            in_net.append(ii.index)
     in_syst=[]
     for ii in prov_system.atom:
         in_syst.append(ii.index)
@@ -479,9 +497,10 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
     for chch in prov_system.chains :
         interr=-1
         for ii in anm.system.atom:
-            if ii.chain.name == chch:
-                extreme=ii.index
-                extreme=in_net.index(extreme)
+            if ii.type_pdb in ['ATOM']: ## Added
+                if ii.chain.name == chch:
+                    extreme=ii.index
+                    extreme=in_net.index(extreme)
 
         for ii in prov_system.atom:
             if ii.chain.name == chch:
@@ -495,7 +514,7 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
                         interr=-1
                     else:
                         initial=jj
-                        end=in_syst.index(in_net[net_end])
+                        end=in_syst.index(in_net[net_end]) #
 
                 if interr==-1:
                     tt[jj]=1.0
@@ -510,10 +529,11 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
         for chch in prov_system.chains :
             interr=-1
             for ii in anm.system.atom:
-                if ii.chain.name == chch:
-                    extreme=ii.index
-                    extreme=in_net.index(extreme)
-            ant=anm.eigenvects_3d[ind_mode][kk]
+                if ii.type_pdb in ['ATOM']: ## Added
+                    if ii.chain.name == chch:
+                        extreme=ii.index
+                        extreme=in_net.index(extreme)
+            ant=aux_vect_3d[ind_mode][kk]
             for ii in prov_system.atom:
                 if ii.chain.name == chch:
                     jj+=1
@@ -524,10 +544,10 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
                         net_end=net_initial+1
                         if net_end>extreme:
                             interr=-1
-                            ant[:]=anm.eigenvects_3d[ind_mode][kk]
+                            ant[:]=aux_vect_3d[ind_mode][kk]
                         else:
-                            aaa=anm.eigenvects_3d[ind_mode][net_initial]
-                            bbb=anm.eigenvects_3d[ind_mode][net_end]
+                            aaa=aux_vect_3d[ind_mode][net_initial]
+                            bbb=aux_vect_3d[ind_mode][net_end]
                         kk+=1
                     if interr==-1:
                         osc[jj][:]=ant[:]
@@ -577,7 +597,9 @@ def build_fluct_anm(system,anm,mode='all',output=None,amplitude=8.0,steps=60):
                 a+='          '                            # 67-76
                 a+="%2s" % prov_system.atom[ii].elem_symb  # 77-78
                 a+="%2s" % prov_system.atom[ii].charge     # 79-80
-                #a+='\n'
+
+                if a[-1]!='\n' :
+                    a+='\n'
                 file.write(str(a))
 
             a='ENDMDL \n'
