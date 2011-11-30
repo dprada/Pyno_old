@@ -1,6 +1,6 @@
-#! /usr/bin/python2
+#! /usr/bin/python
 import sys
-sys.path.append('../Beta_Pyno')
+sys.path.append('../')
 import pynoramix as pyno
 import cPickle as pickle
 
@@ -8,7 +8,7 @@ db = []
 
 
 #---------[ CAP - 2CAMP ]-----------------
-if 0:
+if 1:
     pdb='cap-camp-1g6n'
     prot   = pyno.molecule('pdb/%s.pdb'%pdb)
     calist = [ ii.index  for ii in prot.atom if ii.name == 'CA' and 10<ii.resid.pdb_index<128 ]
@@ -47,7 +47,7 @@ else: db=pickle.load(open('cap.db'))
 #--[ ANALYSIS ]---------------------------
 
 # FLUCTUATIONS
-if 1:
+if 0:
     for jj in [2,4]:
         for ii in [0,1]:
             #bf=db[ii][jj].bfacts
@@ -59,8 +59,8 @@ if 1:
             print "\n\n"
 
 # DISPLACEMENT VECTORS
-if 0:
-    if 1:
+if 1:
+    if 0:
 
         prot= db[0][0]
         ca  = db[0][1]
@@ -78,7 +78,7 @@ if 0:
             icsum+=nm.ic[ii]*nm.ic[ii]
             print ii, abs(nm.ic[ii]), icsum
 
-    if 1:
+    if 0:
 
         prot= db[1][0]
         ca  = db[1][1]
@@ -99,7 +99,7 @@ if 0:
 
     # ---- CAMP bound -------
 
-    if 1:
+    if 0:
 
         prot= db[0][0]
         ca  = db[0][3] ### !!
@@ -135,4 +135,4 @@ if 0:
             icsum+=nm.ic[ii]*nm.ic[ii]
             print ii, abs(nm.ic[ii]), icsum
 
-    #    pyno.build_fluct_anm( prot, nm, mode=7,amplitude=8.0,steps=60)
+        pyno.build_fluct_anm( prot, nm, mode=7,amplitude=8.0,steps=60)

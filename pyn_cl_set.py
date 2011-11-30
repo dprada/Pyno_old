@@ -698,6 +698,10 @@ def xtc2bin(xtc_name,bin_name):
     system(command)
 
 
+def dot_product_3d(vect1,vect2):
+
+    return f.aux_funcs_general.proj3d(vect1,vect2,len(vect1))
+
 
 #######################################################
 ####### Selection algorithm:    (Any suggestion to Roman)
