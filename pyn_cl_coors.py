@@ -39,7 +39,7 @@ class cl_coors:
 
     def read_pdb (self,name_file,frame):
 
-        model=1
+        model=0
         for line in open(name_file,'r'):
             ii=line.split()
 

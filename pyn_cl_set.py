@@ -47,6 +47,7 @@ class labels_unit():                           # Every unit (atom) has at least 
         self.name=None
         self.index=None
         self.pdb_index=None
+        self.covalent_bonds=[]                 # List of atoms covalently bonded.
 
 class labels_set(labels_unit):                 # Every set of units (chain, residue, molecule) has at least these attributes
     def __init__(self):
@@ -73,15 +74,14 @@ class cl_unit(labels_unit):                     # Attributes of an atom
     def __init__(self):
         '''Initialize an atom object'''
 
-        # From labels_unit: .name, .index, .pdb_index        
+        # From labels_unit: .name, .index, .pdb_index, .covalent_bonds    
 
         # > Topological properties
 
-        self.resid=labels_unit()         # Residue which this atom belongs to. 
-        self.chain=labels_unit()         # Chain which this atom belongs to.
+        self.resid=labels_unit()        # Residue which this atom belongs to. 
+        self.chain=labels_unit()        # Chain which this atom belongs to.
         self.parent=None                # Selection which this atom comes from.
 
-        self.covalent_bonds=[]           # List of atoms covalently bonded.
         self.alt_loc=0                  # Alternate location (PDB)
         self.code_ins_res=0             # Code of insertion of residues (PDB)
         self.seg_ident=''               # Index segment (PDB)
@@ -127,7 +127,7 @@ class cl_water(labels_set):             # Attributes of a water molecule
 
         # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
 
-        self.water_model=water_model
+        self.model=water_model
                 
         self.O=labels_unit()
         self.H1=labels_unit()
@@ -162,7 +162,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.chain=[]                   # list of chains   (objects: molecule)
         self.chains=[]                  # list of chain names (strings)
         self.water=[]                   # list of waters   (objects: cl_water)
-        self.water_model=''             # water model
+        self.water_model=None           # water model
         self.parent=None                # Parent set if it comes from selection (object: labels_parent)
 
         # > Physical and Chemical properties
@@ -268,51 +268,55 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             for residue in self.resid[:]:
                 if residue.name in ['HOH','SOL','HO4','water']:
+                    if self.water_model==None:
+                        self.water_model='tip'+str(len(residue.list_atoms))+'p'
                     temp_water=cl_water()
                     temp_water.name=residue.name
                     temp_water.index=residue.index
                     temp_water.pdb_index=residue.pdb_index
                     temp_water.list_atoms=residue.list_atoms
-                    if self.water_model==None:
-                        self.water_model='tip'+str(len(residue.list_atoms))+'p'
-                    if 'HW1' in aux[residue.index].keys():
-                        ii=aux[residue.index]['HW1']
-                        temp_water.H1.index=ii
-                        temp_water.H1.pdb_index=self.atom[ii].pdb_index
-                        temp_water.H1.name='HW1'
-                        ii=aux[residue.index]['HW2']
-                        temp_water.H2.index=ii
-                        temp_water.H2.pdb_index=self.atom[ii].pdb_index
-                        temp_water.H2.name='HW2'
-                        ii=aux[residue.index]['OW']
-                        temp_water.O.index=ii
-                        temp_water.O.pdb_index=self.atom[ii].pdb_index
-                        temp_water.O.name='OW'
-                    if 'O' in aux[residue.index].keys():
-                        temp_water.H1=None
-                        temp_water.H2=None
-                        ii=aux[residue.index]['O']
-                        temp_water.O.index=ii
-                        temp_water.O.pdb_index=self.atom[ii].pdb_index
-                        temp_water.O.name='O'
+                    temp_water.model=self.water_model
 
-
-                    for atom in [self.atom[ii] for ii in temp_water.list_atoms[:]]:
+                    for ii in residue.list_atoms:
+                        atom=self.atom[ii]
                         if atom.name in ['OW']:
                             atom.acceptor=True
                             atom.polar_class='acceptor'
                             atom.polarizability=True
-                            atom.covalent_bonds.append(aux[atom.resid.index]['HW1'])
-                            atom.covalent_bonds.append(aux[atom.resid.index]['HW2'])
+                            temp_water.O.index=atom.index
+                            temp_water.O.pdb_index=atom.pdb_index
+                            temp_water.O.name='OW'
                         if atom.name in ['O']:
                             atom.acceptor=True
                             atom.polar_class='acceptor'
                             atom.polarizability=True
+                            temp_water.O.index=atom.index
+                            temp_water.O.pdb_index=atom.pdb_index
+                            temp_water.O.name='O'
+                            temp_water.H1=None
+                            temp_water.H2=None
                         if atom.name in ['HW1','HW2']:
                             atom.donor=True
                             atom.polar_class='donor'
                             atom.polarizability=True
-                            atom.covalent_bonds.append(aux[atom.resid.index]['OW'])
+                            if atom.name in ['HW1']:
+                                temp_water.H1.index=atom.index
+                                temp_water.H1.pdb_index=atom.pdb_index
+                                temp_water.H1.name='HW1'
+                            elif atom.name in ['HW2']:
+                                temp_water.H2.index=atom.index
+                                temp_water.H2.pdb_index=atom.pdb_index
+                                temp_water.H2.name='HW2'
+                    if len(temp_water.list_atoms) >= 3:
+                        ii_O=temp_water.O.index; ii_H1=temp_water.H1.index; ii_H2=temp_water.H2.index
+                        temp_water.O.covalent_bonds.append(ii_H1)
+                        temp_water.O.covalent_bonds.append(ii_H2)
+                        temp_water.H1.covalent_bonds.append(ii_O)
+                        temp_water.H2.covalent_bonds.append(ii_O)
+                        self.atom[ii_O].covalent_bonds=temp_water.O.covalent_bonds
+                        self.atom[ii_H1].covalent_bonds=temp_water.H1.covalent_bonds
+                        self.atom[ii_H2].covalent_bonds=temp_water.H2.covalent_bonds
+
 
                     self.water.append(temp_water)
 
@@ -531,14 +535,30 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         if self.coors_file.endswith('pdb'):
 
             if frame==None:
-                if end==None:
-                    end=0
-                    for line in open(self.coors_file,'r'): 
-                        if line.startswith('MODEL'): 
-                            end+=1
-                    if end==0: end=1
                 if begin==None:
-                    begin=1
+                    if end==None:
+                        frame=[]
+                        for line in open(self.coors_file,'r'): 
+                            if line.startswith('MODEL'): 
+                                frame.append(int(line.split()[1]))
+                        if len(frame)==0:
+                            begin=0
+                            end=0
+                        else:
+                            begin=frame[0]
+                            end=frame[-1]
+                    else:
+                        for line in open(self.coors_file,'r'): 
+                            if line.startswith('MODEL'): 
+                                begin=frame.append(int(line.split()[1]))
+                                break
+                else:
+                    if end==None:
+                        frame=[]
+                        for line in open(self.coors_file,'r'): 
+                            if line.startswith('MODEL'): 
+                                frame.append(int(line.split()[1]))
+                        end=frame[-1]
                     
                 frame=[ii for ii in range(begin,end+1)]
 

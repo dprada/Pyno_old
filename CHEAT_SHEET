@@ -35,6 +35,7 @@ prot.water[]		       	  # List of waters   (list of objects)
 prot.atom[i].name	       	  # name of atom i+1
 prot.atom[i].index	    	  # atom index for pynoramix
 prot.atom[i].pdb_index	    	  # atom pdb_index
+prot.atom[i].covalent_bonds	  # list of atom indexes bonded
 
 prot.resid[i].name	    	  # name of residue i+1
 prot.resid[i].index	    	  # residue index for pynoramix
@@ -98,13 +99,27 @@ prot.parent			 # name of the parent system if prot is a selection
 
 prot.list_atoms			 # list of atom indexes
 prot.water_model                 # water model
-prot.covalent_bond		 # List of atoms covalently bonded.
+prot.covalent_bonds=[]		 # List of atom pairs covalently bonded. #TODO
 prot.acceptors=[]		 # list of acceptors								
 prot.donors=[]			 # list of donnors									  
 prot.dimensionality=0		 # dimensionality (num_atoms*3)
 
 prot.pdb_header			 # PDB Header (HEAD + TITLE)
 prot.pdb_ss			 # PDB Secondary structure
+
+### Water molecules:
+
+prot.water[i].model
+prot.water[i].name
+prot.water[i].index
+prot.water[i].pdb_index
+prot.water[i].list_atoms
+prot.water[i].O.name
+prot.water[i].O.index
+prot.water[i].O.pdb_index
+prot.water[i].O.covalent_bonds
+prot.water[i].H1.name
+prot.water[i].H2.name
 
 ###
 ### Functions of a system
@@ -172,3 +187,10 @@ nm.write()		# write output files for PyMOL
 # External function:
 build_fluct_anm(system,anm,mode=7,output='movie.pdb')
 build_fluct_anm(system,anm,mode=[6,7,8],amplitude=8.0,steps=60)
+
+
+
+#################################################################################
+##########    WATER ANALYSIS   (pyn_cl_xxx.py, pyn_fort_xxx.f90) 
+#################################################################################
+
