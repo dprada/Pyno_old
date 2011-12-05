@@ -22,6 +22,11 @@ prot.delete_coors(frame=range(1,prot.num_frames))
 prot.delete_coors(frame=19)                         # Delete prot.frame[19]
 prot.delete_coors(frame=[0,3,6,9])                  # Delete prot.frame[0], prot.frame[3], prot.frame[6], prot.frame[9]
 
+### Dealing with coordinates:
+
+prot.num_frames
+prot.last_frame
+
 ### Main attributes of a system:
 
 prot.file			  # File used to create the topology
