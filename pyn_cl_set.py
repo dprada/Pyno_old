@@ -302,8 +302,8 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                             atom.acceptor=True
                             atom.polar_class='acceptor'
                             atom.polarizability=True
-                            atom.covalent_bond.append(aux[atom.resid.index]['HW1'])
-                            atom.covalent_bond.append(aux[atom.resid.index]['HW2'])
+                            atom.covalent_bonds.append(aux[atom.resid.index]['HW1'])
+                            atom.covalent_bonds.append(aux[atom.resid.index]['HW2'])
                         if atom.name in ['O']:
                             atom.acceptor=True
                             atom.polar_class='acceptor'
@@ -312,7 +312,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                             atom.donor=True
                             atom.polar_class='donor'
                             atom.polarizability=True
-                            atom.covalent_bond.append(aux[atom.resid.index]['OW'])
+                            atom.covalent_bonds.append(aux[atom.resid.index]['OW'])
 
                     self.water.append(temp_water)
 
