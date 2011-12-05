@@ -173,7 +173,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         # > Coordinates
         self.frame=[]                   # list of coordinates (objects: cl_coors)
         self.num_frames=0               # number of frames or models
-        self.recent_frame=0             # auxilary index of the last frame analysed
+        self.last_frame=0               # auxilary index of the last frame analysed
         self.dist_matrix=[]             # distance matrix (This should go to cl_coors?)
 
         # > Info PDB
