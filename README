@@ -14,6 +14,8 @@ With gfortran in Goldrake:
 f2py2 -c -m pyn_fort_general pyn_fort_general.f90 -llapack
 f2py2 -c -m pyn_fort_enm pyn_fort_enm.f90 -llapack
 
+Note: f2py requires python2.6-dev
+
 --------------------------------------------
 
 Provisional Structure:
