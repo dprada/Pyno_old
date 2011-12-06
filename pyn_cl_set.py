@@ -574,18 +574,18 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
         elif self.coors_file.endswith('bin'):
             if begin==None and frame==None and end==None:
-                temp_frame=cl_coors(self.coors_file,self.recent_frame)
+                temp_frame=cl_coors(self.coors_file,self.last_frame)
                 self.frame.append(temp_frame)
-                self.recent_frame+=1
+                self.last_frame+=1
             elif begin==None and end==None and frame!=None:
                 temp_frame=cl_coors(self.coors_file,frame)
                 self.frame.append(temp_frame)
-                self.recent_frame=frame
+                self.last_frame=frame
             elif begin!=None and end!=None:
                 for ii in range(begin,end):
                     temp_frame=cl_coors(self.coors_file,ii)
                     self.frame.append(temp_frame)
-                self.recent_frame=end
+                self.last_frame=end
 
         self.num_frames=len(self.frame)
 
