@@ -1,11 +1,11 @@
 MODULE WAT
 
-
+INTEGER::switch
 INTEGER::nw,natw
-INTEGER::nparts
+INTEGER::nparts,nparts2
 REAL::Lbox,Lbox2
 
-REAL, ALLOCATABLE, DIMENSION(:,:,:) :: XARR    ! posiciones (molecula,atomo,coordenada)
+REAL, DIMENSION(:,:,:), ALLOCATABLE :: XARR    ! posiciones (molecula,atomo,coordenada)
 REAL, ALLOCATABLE, DIMENSION(:,:,:) :: DARR    !! (index_water,Hi,num_neights)
 INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: IARR    !! (index_water,Hi,num_neights)
 REAL,    ALLOCATABLE, DIMENSION(:,:,:,:) :: vect_norm_htoo    !! (index_water,Hi,num_neights)
@@ -25,18 +25,15 @@ REAL::pi
 PARAMETER (pi=acos(-1.0d0))
 PARAMETER (natw=3)
 PARAMETER (nparts=8)
+PARAMETER (nparts2=nparts*nparts*2*2)
 
 CONTAINS
 
-
-
-SUBROUTINE microstates (switch,XARR_c,lenbox,mss,num_waters)
+SUBROUTINE microstates (num_waters,lenbox,mss)
 
   IMPLICIT NONE 
 
-  INTEGER,INTENT(INOUT)::switch
   INTEGER,INTENT(IN)::num_waters
-  REAL,DIMENSION(num_waters,3,3),INTENT(IN)::XARR_c
   REAL,INTENT(IN)::lenbox
 
   INTEGER,DIMENSION(num_waters,17),INTENT(OUT)::mss
@@ -48,15 +45,15 @@ SUBROUTINE microstates (switch,XARR_c,lenbox,mss,num_waters)
   Lbox2=Lbox/2.0d0
 
 
-  ALLOCATE(XARR(nw,natw,3))
-  ALLOCATE(IARR(nw,2,nparts))    ! indice de los nparts atomos de O primeros vecinos de un H dado (indice molecula, H1o H2, orden primeros vecinos)
-  ALLOCATE(DARR(nw,2,nparts))    ! distancia de los pares O-H de acuerdo con iarr
+
+!  ALLOCATE(IARR(nw,2,nparts))    ! indice de los nparts atomos de O primeros vecinos de un H dado (indice molecula, H1o H2, orden primeros vecinos)
+!  ALLOCATE(DARR(nw,2,nparts))    ! distancia de los pares O-H de acuerdo con iarr
   ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
   ALLOCATE(wat_perp(nw,3))
 
-  XARR=0.0d0
-  DARR=0.0d0
-  IARR=0
+
+!  DARR=0.0d0
+!  IARR=0
   vect_norm_htoo=0.0d0
   wat_perp=0.0d0
 
@@ -82,13 +79,13 @@ SUBROUTINE microstates (switch,XARR_c,lenbox,mss,num_waters)
   ms_short2=0
   mss_ind_wat=0
 
-  XARR=XARR_c
 
-  print*,switch
-  IF (switch==1) switch=0 
-  print*,'   ',switch
-
-  CALL DMAT()
+  IF (switch==1) THEN
+     CALL DMAT()
+     switch=0
+  ELSE
+     CALL DMAT_EF ()
+  END IF
 
   CALL HBONDS_SKINNER()
 
@@ -100,7 +97,7 @@ SUBROUTINE microstates (switch,XARR_c,lenbox,mss,num_waters)
   END DO
 
 
-  DEALLOCATE(XARR,IARR,DARR,vect_norm_htoo,wat_perp)
+  DEALLOCATE(vect_norm_htoo,wat_perp)
   DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
   DEALLOCATE(strength_o2h,strength_h2o)
   DEALLOCATE(shell_w,ms_short2,ms_short,mss_ind_wat)
@@ -170,6 +167,105 @@ SUBROUTINE DMAT()
   
 END SUBROUTINE DMAT
 
+SUBROUTINE DMAT_EF()
+
+  IMPLICIT NONE
+  INTEGER::i,j,jj,g,oo,h,hh,gg
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filter_Hs
+  LOGICAL,DIMENSION(:),ALLOCATABLE::aux_filter
+  REAL,DIMENSION(:),ALLOCATABLE::dHs
+  REAL,DIMENSION(3)::vect_aux,aux2
+  REAL,DIMENSION(:,:),ALLOCATABLE::vect_aux2
+  INTEGER,DIMENSION(:),ALLOCATABLE::list,list2
+  INTEGER,DIMENSION(:,:,:),ALLOCATABLE::iarr2
+  REAL::norm,val
+
+  ALLOCATE(list(nparts2),list2(nparts),filter_Hs(nparts2),aux_filter(NW),dHs(nparts2),iarr2(NW,2,nparts))
+  iarr2=0
+  dHs=0.0d0
+  list=0
+  list2=0
+  aux_filter=.false.
+  DARR=0.0d0
+  filter_Hs=.false.
+
+  DO i=1,NW
+
+     !! List of second neighbors of molecule i:
+     list=0
+     oo=0
+     DO j=1,2
+        DO h=1,nparts
+           g=IARR(i,j,h)
+           aux_filter(g)=.true.
+
+           DO jj=1,2
+              DO hh=1,nparts
+                 gg=IARR(g,jj,hh)
+                 aux_filter(gg)=.true.
+              END DO
+           END DO
+
+        END DO
+     END DO
+
+     aux_filter(i)=.false.
+
+     DO j=1,NW
+        IF (aux_filter(j)==.true.) THEN
+           oo=oo+1
+           list(oo)=j
+           aux_filter(j)=.false.
+        END IF
+     END DO
+
+     !! Checking the second neighbors of molecule i:
+
+     ALLOCATE(vect_aux2(oo,3))
+     vect_aux2=0.0d0
+     filter_Hs(1:oo)=.true.
+     DO j=1,2
+        aux2=XARR(i,j+1,:)
+
+        DO hh=1,oo
+           h=list(hh)
+           vect_aux=XARR(h,1,:)-aux2
+           CALL PBC (vect_aux)
+           vect_aux2(hh,:)=vect_aux(:)
+           dHs(hh)=sqrt(dot_product(vect_aux,vect_aux))
+        END DO
+
+        DO jj=1,nparts
+           g=MINLOC(dHs(:),DIM=1,MASK=filter_Hs(:))
+           list2(jj)=g
+           IARR2(i,j,jj)=list(g)
+           norm=dHs(g)
+           DARR(i,j,jj)=norm
+           vect_norm_htoo(i,j,jj,:)=vect_aux2(g,:)/norm
+           filter_Hs(g)=.false.
+        END DO
+        DO jj=1,nparts
+           g=list2(jj)
+           filter_Hs(g)=.true.
+        END DO
+     END DO
+     filter_Hs(1:oo)=.false.
+
+     DEALLOCATE(vect_aux2)
+
+END DO
+
+
+DEALLOCATE(list,list2,filter_Hs,aux_filter,dHs)
+
+
+
+IARR=IARR2 
+DEALLOCATE(iarr2)
+
+  
+
+END SUBROUTINE DMAT_EF
 
 
 SUBROUTINE HBONDS_SKINNER()
