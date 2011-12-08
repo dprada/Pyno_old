@@ -32,5 +32,5 @@ Provisional Structure:
    >> pyn_cl_water      (module with specific water analysis) -To be added-
    >> pyn_fort_water    (specific fortran subroutines for water analysis) -To be added-
 
-   >> pyn_cl_net        (module with complex network analysis) -To be added-
-   >> pyn_fort_net      (specific fortran subroutines for network analysis) -To be added-
+   >> pyn_cl_net        (module with complex network analysis) 
+   >> pyn_fort_net      (specific fortran subroutines for network analysis) 
