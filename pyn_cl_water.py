@@ -3,7 +3,8 @@ from numpy import *
 import pyn_fort_general as f
 import pyn_fort_water as f_water
 from pyn_cl_set import *
-
+import copy
+import pickle as pic
 
 #####################################################################################
 ##### Gaussian Network Model
@@ -21,21 +22,25 @@ class kinetic_network():
             print 'kinetic_network(system=None,file_traj=None,begin=None,end=None)'
             return None
 
-        #coors_wat=zeros(shape=(system.num_waters,3,3),order='Fortran')
         
+        ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
         system.last_frame=begin
         f_water.wat.switch=1
         f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
         f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
         f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
 
+        ####### INITIALIZE NET#####
         nodes_ant=[0 for ii in range(system.num_waters)]
         nodes_post=[0 for ii in range(system.num_waters)]
-        net={}
+        net=[]
         clave={}
-        num_nodes=0
+        num_nodes=-1
+        ####### INITIALIZE NET#####
+        
 
-        ## first frame
+
+        ###################################### first frame
 
         system.load_coors(file_traj)
 
@@ -45,7 +50,10 @@ class kinetic_network():
             f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
 
         mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
+        
 
+
+        ###### NET: 1ST FRAME NODES ########
         for jj in range(system.num_waters):
             aa=str(mss[jj])
             try:
@@ -54,8 +62,12 @@ class kinetic_network():
                 num_nodes+=1
                 clave[aa]=num_nodes
                 nodes_ant[jj]=num_nodes
+                net.append({})
+        ###### NET: 1ST FRAME NODES ########
 
         system.delete_coors()
+        
+        ###################################### Remaining frames
 
         for ii in range(begin+1,end+1):
 
@@ -65,78 +77,58 @@ class kinetic_network():
                 f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
                 f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
                 f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
-
+            
             mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
 
+
+            ###### NET: FRAME NODES ########
             for jj in range(system.num_waters):
                 bb=str(mss[jj])
                 try:
-                    nodes_ant[jj]=clave[bb]
+                    nodes_post[jj]=clave[bb]
                 except:
                     num_nodes+=1
                     clave[bb]=num_nodes
                     nodes_post[jj]=num_nodes
-
+                    net.append({})
+            ###### NET: FRAME NODES ########
 
             system.delete_coors()
+            
 
+            ###### NET: LINKS ##############
             for jj in range(system.num_waters):
 
                 aa=nodes_ant[jj]
                 bb=nodes_post[jj]
 
-                
                 try:
                     net[aa][bb]+=1
-                except KeyError,e:
-                    if e[0]==aa:
-                        net[aa]={bb:1}
-                    elif e[0]==bb:
-                        net[aa][bb]=1
-                
-
-                '''
-                if aa in net.keys() and bb in net[aa].keys():
-                    net[aa][bb]+=1
-                elif aa in net.keys() and bb not in net[aa].keys():
+                except:
                     net[aa][bb]=1
-                elif aa not in net.keys():
-                    net[aa]={bb:1}
-                '''
-            nodes_ant=nodes_post        
+            ###### NET: LINKS ##############
             
+            ###### NET: UPDATE FRAME #######
+            nodes_ant=copy.deepcopy(nodes_post)
+            ###### NET: UPDATE FRAME #######
+            
+        ################################################# END
 
         self.net=net
+        self.keys=clave
+        self.keys_inv=dict((v,k) for k, v in clave.iteritems())
+
         return 
 
-        '''
-        def ff(aa,bb):
-    if aa in net.keys() and bb in net[aa].keys():
-        net[aa][bb]+=1
-    elif aa in net.keys() and bb not in net[aa].keys():
-        net[aa][bb]=1
-    elif aa not in net.keys():
-        net[aa]={bb:1}
-        '''
-
-
-        '''
-net={}
-
-def fff(aa,bb):
-
-    try: 
-        net[aa][bb]+=1
-    except KeyError,e:
-        if e[0]==aa:
-            net[aa]={bb:1}
-        elif e[0]==bb:
-            net[aa][bb]=1
-for ii in range(10000000):
-    fff('node1','node1')
-        '''
-
-
+'''
+    ## Provisional auxiliary functions
+    def reformatting(self):
+    
+        for jj in range(system.num_waters):
+            f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+            f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+            f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+'''
 
             
 
