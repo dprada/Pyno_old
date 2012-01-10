@@ -181,9 +181,19 @@ class kinetic_network():
             
         ################################################# END
 
-        self.net=net
+        self.link=net
         self.keys=clave
         self.keys_inv=dict((v,k) for k, v in clave.iteritems())
+        self.num_nodes=len(self.keys)
+        self.Kout_node=[]
+        self.weight_node=[]
+        for ii in range(self.num_nodes):
+            self.Kout_node.append(len(net[ii]))
+            self.weight_node.append(sum(net[ii].values()))
+        self.num_links=sum(self.Kout_node)
+        self.weight_total=sum(self.weight_node)
+
+        del(net)
 
         return 
 
