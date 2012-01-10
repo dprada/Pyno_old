@@ -14,6 +14,18 @@ import pickle as pic
 
 def hbonds_water(definition=None,system1=None,system2=None,frame=None,optimize=False):
 
+    # Reset of previous hbonds
+
+    for ii in system1.atom :
+        ii.hbonds=[]
+
+    for ii in system1.water :
+        ii.O.hbonds=[]
+        ii.H1.hbonds=[]
+        ii.H2.hbonds=[]
+
+    # Skinner
+
     if definition=='Skinner':
 
         if system2==None and optimize==False:
