@@ -42,11 +42,6 @@ def hbonds_water(definition=None,system1=None,system2=None,frame=None,optimize=F
         ## f_water.wat.h2o[i,j-1,dim=6]           list of water index bonded to water i because of the atom Hj
         ## f_water.wat.strength_h2o[i,j-1,dim=6]  skinner parameter corresponding to f_water.wat.h2o
 
-#        print f_water.wat.num_o2h[0],len(f_water.wat.num_o2h)
-#        print f_water.wat.o2h[0]
-#        print f_water.wat.o2which[0]
-#        print f_water.wat.strength_o2h[0]
-
         # Reformatting data:
         list_hbonds={}
         for ii in range(system1.num_waters):
