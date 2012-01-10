@@ -29,6 +29,50 @@ PARAMETER (nparts2=nparts*nparts*2*2)
 
 CONTAINS
 
+SUBROUTINE hbonds_skinner (num_waters,lenbox)
+
+  nw=num_waters
+  Lbox=lenbox
+  Lbox2=Lbox/2.0d0
+
+  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
+  ALLOCATE(wat_perp(nw,3))
+
+  vect_norm_htoo=0.0d0
+  wat_perp=0.0d0
+
+  !! Optimization for hbonds
+
+  ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
+  ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
+
+  num_h2o=0
+  num_o2h=0
+  o2h=0
+  h2o=0
+  o2which=0
+  strength_h2o=0.0d0
+  strength_o2h=0.0d0
+
+  IF (switch==0) THEN
+     CALL DMAT()
+     switch=1
+  ELSE
+     CALL DMAT_EF()
+  END IF
+
+  CALL HBONDS_SKINNER_INTERNAL()
+
+  DEALLOCATE(vect_norm_htoo,wat_perp)
+
+END SUBROUTINE hbonds_skinner
+
+
+SUBROUTINE free_hbonds()
+  DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
+  DEALLOCATE(strength_o2h,strength_h2o)
+END SUBROUTINE free_hbonds
+
 SUBROUTINE microstates (num_waters,lenbox,mss)
 
   IMPLICIT NONE 
@@ -57,6 +101,7 @@ SUBROUTINE microstates (num_waters,lenbox,mss)
   vect_norm_htoo=0.0d0
   wat_perp=0.0d0
 
+  !! Optimization for hbonds
 
   ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
   ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
@@ -71,6 +116,13 @@ SUBROUTINE microstates (num_waters,lenbox,mss)
   strength_o2h=0.0d0
   hbsmol=0
 
+  IF (switch==0) THEN
+     CALL DMAT()
+     switch=1
+  ELSE
+     CALL DMAT_EF ()
+  END IF
+
 
   ALLOCATE(shell_w(nw,17),ms_short(17),ms_short2(17),mss_ind_wat(17))     ! numero maximo de moleculas vecinas en las dos capas
 
@@ -79,15 +131,7 @@ SUBROUTINE microstates (num_waters,lenbox,mss)
   ms_short2=0
   mss_ind_wat=0
 
-
-  IF (switch==1) THEN
-     CALL DMAT()
-     switch=0
-  ELSE
-     CALL DMAT_EF ()
-  END IF
-
-  CALL HBONDS_SKINNER()
+  CALL HBONDS_SKINNER_INTERNAL()
 
   CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
   DO j=1,NW      
@@ -268,7 +312,7 @@ DEALLOCATE(iarr2)
 END SUBROUTINE DMAT_EF
 
 
-SUBROUTINE HBONDS_SKINNER()
+SUBROUTINE HBONDS_SKINNER_INTERNAL()
 
   IMPLICIT NONE
   INTEGER::i,ii,j,jj,g,gg,h,hh
@@ -278,6 +322,7 @@ SUBROUTINE HBONDS_SKINNER()
   REAL,DIMENSION(:),ALLOCATABLE::back3
 
   ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+
 
   CALL ALL_NORM_WATER ()
 
@@ -356,7 +401,7 @@ SUBROUTINE HBONDS_SKINNER()
 
   DEALLOCATE(filtro,back1,back2,back3)
 
-END SUBROUTINE HBONDS_SKINNER
+END SUBROUTINE HBONDS_SKINNER_INTERNAL
 
 
 SUBROUTINE SKINNER_PARAMETER (molh,hi,vecino,molo,Nval)
@@ -1000,3 +1045,4 @@ END SUBROUTINE NORMALIZE_VECT
 
 END MODULE WAT
 
+!!!! f2py --f90flags='-fast' -c -m pyn_fort_water pyn_fort_water.f90
