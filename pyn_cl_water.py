@@ -51,10 +51,16 @@ def hbonds_water(definition=None,system1=None,system2=None,frame=None,optimize=F
                 index_water_h=f_water.wat.o2h[ii,jj]-1
                 if f_water.wat.o2which[ii,jj]==1:
                     index_h=system1.water[index_water_h].H1.index
+                    aux_link_h=system1.water[index_water_h].H1.hbonds
                 else:
                     index_h=system1.water[index_water_h].H2.index
+                    aux_link_h=system1.water[index_water_h].H2.hbonds
                 list_hbonds[str(index_o)+'-'+str(index_h)]=f_water.wat.strength_o2h[ii,jj]
-        
+                system1.water[index_water_o].O.hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
+                system1.atom[index_o].hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
+                aux_link_h.append([index_o,f_water.wat.strength_o2h[ii,jj]])
+                system1.atom[index_h].hbonds.append([index_o,f_water.wat.strength_o2h[ii,jj]])
+
         # Free memory:
         f_water.wat.free_hbonds()
 
