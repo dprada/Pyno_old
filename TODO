@@ -8,4 +8,6 @@
 - Use pickle to save the normal modes analysis.
 - The function to build the enm movie needs to check if the file exists.
 - Optimize the reading of a binary file (pyn_cl_coors)
+- To select the hydrogens: (HW1 and HW2) or there is another option (H?, H*?)
+- The function neighbs should include the option 'frame'.
 
