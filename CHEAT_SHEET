@@ -41,6 +41,7 @@ prot.atom[i].name	       	  # name of atom i+1
 prot.atom[i].index	    	  # atom index for pynoramix
 prot.atom[i].pdb_index	    	  # atom pdb_index
 prot.atom[i].covalent_bonds	  # list of atom indexes bonded
+prot.atom[i].hbonds               # list of atom indexes h-bonded
 
 prot.resid[i].name	    	  # name of residue i+1
 prot.resid[i].index	    	  # residue index for pynoramix
@@ -123,8 +124,12 @@ prot.water[i].O.name
 prot.water[i].O.index
 prot.water[i].O.pdb_index
 prot.water[i].O.covalent_bonds
+prot.water[i].O.hbonds
 prot.water[i].H1.name
+prot.water[i].H1.hbonds
 prot.water[i].H2.name
+prot.water[i].H2.hbonds
+
 
 ###
 ### Functions of a system
@@ -199,3 +204,5 @@ build_fluct_anm(system,anm,mode=[6,7,8],amplitude=8.0,steps=60)
 ##########    WATER ANALYSIS   (pyn_cl_xxx.py, pyn_fort_xxx.f90) 
 #################################################################################
 
+# External function:
+hbonds_water(definition='Skinner',system1=watbox)   # The function has an output but also updates prot.water[i].H1.hbonds and prot.atom[814].hbonds
