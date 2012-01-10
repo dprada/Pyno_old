@@ -10,4 +10,4 @@
 - Optimize the reading of a binary file (pyn_cl_coors)
 - To select the hydrogens: (HW1 and HW2) or there is another option (H?, H*?)
 - The function neighbs should include the option 'frame'.
-
+- Case: The system named A has a selection name sub_A. If the coordinates of A have changed (i.e.: new frames attached or a rotation of A)... the coordinates of sub_A are updated?
