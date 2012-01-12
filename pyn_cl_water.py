@@ -1,13 +1,13 @@
 from numpy import *
-#import pyn_fort_water as f_water
 import pyn_fort_general as f
 import pyn_fort_water as f_water
 from pyn_cl_set import *
+from pyn_cl_net import *
 import copy
 import pickle as pic
 
 #####################################################################################
-##### Gaussian Network Model
+##### Water tools
 #####################################################################################
 
 
@@ -78,11 +78,63 @@ def hbonds_water(definition=None,system1=None,system2=None,frame=None,optimize=F
 
         return list_hbonds   # dict: 'index_O'-'indexH'=Skinner_parameter
 
-class kinetic_network():
+def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None,frame=None):
+
+    if frame==None:
+        frame=system.last_frame
+
+    f_water.wat.switch=0     # Optimization for hbonds=False 
+            
+    f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
+    f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+    f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+
+    for jj in range(system.num_waters):
+        f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+        f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+        f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+
+    sk=f_water.wat.skinner_parameter(index_wat_o,index_wat_h,index_h,system.frame[0].box[0,0])
+
+    return sk   # dict: 'index_O'-'indexH'=Skinner_parameter
+
+
+
+def mss_water (system=None,ind_waters=False):
+    
+
+        if system==None:
+            print 'Error: input variables needed'
+            print 'mss_water(system=None)'
+            return None
+
+        ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
+        f_water.wat.switch=0          ## Optimization for hbonds=False in first frame
+        f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
+        f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+        f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+
+
+        for jj in range(system.num_waters):
+            f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+            f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+            f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+
+        if ind_waters==False:
+            mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
+        else:
+            mss=f_water.wat.microstates_ind_wat(system.num_waters,system.frame[0].box[0,0])
+
+        return mss
+        
+
+
+class kinetic_network(cl_net):
     
     def __init__(self,system=None,file_traj=None,begin=None,end=None):
 
-        self.file=file_traj
+        self.init_net()
+        self.file_traj=file_traj
 
         if system==None or file_traj==None or begin==None or end==None:
             print 'Error: input variables needed'
@@ -100,15 +152,14 @@ class kinetic_network():
         ####### INITIALIZE NET#####
         nodes_ant=[0 for ii in range(system.num_waters)]
         nodes_post=[0 for ii in range(system.num_waters)]
-        net=[]
-        clave={}
+
         num_nodes=-1
         ####### INITIALIZE NET#####
-        
+
 
 
         ###################################### first frame
-
+        system.delete_coors()
         system.load_coors(file_traj)
 
         for jj in range(system.num_waters):
@@ -124,12 +175,12 @@ class kinetic_network():
         for jj in range(system.num_waters):
             aa=str(mss[jj])
             try:
-                nodes_ant[jj]=clave[aa]
+                nodes_ant[jj]=self.keys[aa]
             except:
                 num_nodes+=1
-                clave[aa]=num_nodes
+                self.keys[aa]=num_nodes
                 nodes_ant[jj]=num_nodes
-                net.append({})
+                self.links.append({})
         ###### NET: 1ST FRAME NODES ########
 
         system.delete_coors()
@@ -152,12 +203,12 @@ class kinetic_network():
             for jj in range(system.num_waters):
                 bb=str(mss[jj])
                 try:
-                    nodes_post[jj]=clave[bb]
+                    nodes_post[jj]=self.keys[bb]
                 except:
                     num_nodes+=1
-                    clave[bb]=num_nodes
+                    self.keys[bb]=num_nodes
                     nodes_post[jj]=num_nodes
-                    net.append({})
+                    self.links.append({})
             ###### NET: FRAME NODES ########
 
             system.delete_coors()
@@ -170,9 +221,9 @@ class kinetic_network():
                 bb=nodes_post[jj]
 
                 try:
-                    net[aa][bb]+=1
+                    self.links[aa][bb]+=1
                 except:
-                    net[aa][bb]=1
+                    self.links[aa][bb]=1
             ###### NET: LINKS ##############
             
             ###### NET: UPDATE FRAME #######
@@ -181,21 +232,20 @@ class kinetic_network():
             
         ################################################# END
 
-        self.link=net
-        self.keys=clave
-        self.keys_inv=dict((v,k) for k, v in clave.iteritems())
+        self.keys_inv=dict((v,k) for k, v in self.keys.iteritems())
         self.num_nodes=len(self.keys)
-        self.Kout_node=[]
-        self.weight_node=[]
         for ii in range(self.num_nodes):
-            self.Kout_node.append(len(net[ii]))
-            self.weight_node.append(sum(net[ii].values()))
-        self.num_links=sum(self.Kout_node)
+            self.k_out_node.append(len(self.links[ii]))
+            self.weight_node.append(sum(self.links[ii].values()))
+        self.num_links=sum(self.k_out_node)
+        self.k_total=self.num_links
+        self.k_max=max(self.k_out_node)
         self.weight_total=sum(self.weight_node)
 
-        del(net)
+        self.info()
 
         return 
+        
 
 '''
     ## Provisional auxiliary functions
@@ -208,6 +258,5 @@ class kinetic_network():
 '''
 
             
-
 
 

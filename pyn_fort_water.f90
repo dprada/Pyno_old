@@ -67,6 +67,62 @@ SUBROUTINE hbonds_skinner (num_waters,lenbox)
 
 END SUBROUTINE hbonds_skinner
 
+SUBROUTINE skinner_parameter (index_wat_o,index_wat_h,index_h,lenbox,Nval)
+
+!  IMPLICIT NONE
+
+  INTEGER,INTENT(IN)::index_wat_o,index_wat_h,index_h
+  REAL,    ALLOCATABLE, DIMENSION(:) :: norm_htoo    !! (index_water,Hi,num_neights)
+  REAL,    ALLOCATABLE, DIMENSION(:) :: perp,aux_vect
+  REAL::dd,aux
+  REAL,INTENT(OUT)::Nval
+
+
+  Lbox=lenbox
+  Lbox2=Lbox/2.0d0
+
+!  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
+!  ALLOCATE(wat_perp(nw,3))
+
+  ALLOCATE(norm_htoo(3),aux_vect(3))
+  ALLOCATE(perp(3))
+
+  norm_htoo=0.0d0
+  perp=0.0d0
+  aux_vect=0.0d0
+  dd=0.0d0
+  aux=0.0d0
+  Nval=0.0d0
+
+  aux_vect=XARR(index_wat_o+1,1,:)-XARR(index_wat_h+1,index_h+1,:)
+  CALL PBC (aux_vect)
+  dd=sqrt(dot_product(aux_vect,aux_vect))
+  norm_htoo=aux_vect/dd
+
+  CALL PERPENDICULAR_WATER(index_wat_o+1,perp)
+
+
+  aux=dot_product(perp(:),norm_htoo(:))
+  aux=acos(aux)
+  aux=aux*(90/pi)
+  IF (aux>90) THEN
+     print*,'here error 3.14',aux
+     STOP
+  END IF
+  IF (aux<0) THEN
+     print*,'here error 3.14',aux
+     STOP
+  END IF
+
+  !! darr is in 10^{-10} m
+  Nval=exp(-dd/0.3430d0)*(7.10d0-0.050d0*aux+0.000210d0*aux**2)
+
+
+  DEALLOCATE(norm_htoo,perp,aux_vect)
+
+END SUBROUTINE skinner_parameter
+
+
 
 SUBROUTINE free_hbonds()
   DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
@@ -150,7 +206,84 @@ SUBROUTINE microstates (num_waters,lenbox,mss)
 END SUBROUTINE microstates
 
 
+SUBROUTINE microstates_ind_wat (num_waters,lenbox,mss)
 
+  IMPLICIT NONE 
+
+  INTEGER,INTENT(IN)::num_waters
+  REAL,INTENT(IN)::lenbox
+
+  INTEGER,DIMENSION(num_waters,17),INTENT(OUT)::mss
+
+  INTEGER::i,j,k
+  
+  nw=num_waters
+  Lbox=lenbox
+  Lbox2=Lbox/2.0d0
+
+
+
+!  ALLOCATE(IARR(nw,2,nparts))    ! indice de los nparts atomos de O primeros vecinos de un H dado (indice molecula, H1o H2, orden primeros vecinos)
+!  ALLOCATE(DARR(nw,2,nparts))    ! distancia de los pares O-H de acuerdo con iarr
+  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
+  ALLOCATE(wat_perp(nw,3))
+
+
+!  DARR=0.0d0
+!  IARR=0
+  vect_norm_htoo=0.0d0
+  wat_perp=0.0d0
+
+  !! Optimization for hbonds
+
+  ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
+  ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
+  ALLOCATE(hbsmol(nw,6))
+
+  num_h2o=0
+  num_o2h=0
+  o2h=0
+  h2o=0
+  o2which=0
+  strength_h2o=0.0d0
+  strength_o2h=0.0d0
+  hbsmol=0
+
+  IF (switch==0) THEN
+     CALL DMAT()
+     switch=1
+  ELSE
+     CALL DMAT_EF ()
+  END IF
+
+
+  ALLOCATE(shell_w(nw,17),ms_short(17),ms_short2(17),mss_ind_wat(17))     ! numero maximo de moleculas vecinas en las dos capas
+
+  shell_w=0
+  ms_short=0
+  ms_short2=0
+  mss_ind_wat=0
+
+  CALL HBONDS_SKINNER_INTERNAL()
+
+  CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
+  DO j=1,NW      
+     CALL STATE_SHORT_NOSIMETRIC(j)   
+     CALL REMOVE_PERMUT_SHORT_NOSIMETRIC(j)
+     mss(j,:)=mss_ind_wat(:)
+     DO i=1,17
+        mss(j,i)=mss(j,i)-1
+     END DO
+  END DO
+
+
+  DEALLOCATE(vect_norm_htoo,wat_perp)
+  DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
+  DEALLOCATE(strength_o2h,strength_h2o)
+  DEALLOCATE(shell_w,ms_short2,ms_short,mss_ind_wat)
+  DEALLOCATE(hbsmol)
+
+END SUBROUTINE microstates_ind_wat
 
 !!!!!!!!!!! INTERNAL SUBROUTINES:
 
@@ -344,7 +477,7 @@ SUBROUTINE HBONDS_SKINNER_INTERNAL()
         DO jj=1,nparts
            IF (darr(i,j,jj)<2.30770d0) THEN  !! darr is in 10^{-10} m
               g=iarr(i,j,jj)
-              CALL SKINNER_PARAMETER(i,j,jj,g,aux1) ! mol H, Hi, vecino, mol O, N val
+              CALL SKINNER_PARAMETER_INTERNAL(i,j,jj,g,aux1) ! mol H, Hi, vecino, mol O, N val
 
               IF (aux1>0.00850d0) THEN
                  gg=gg+1
@@ -404,7 +537,7 @@ SUBROUTINE HBONDS_SKINNER_INTERNAL()
 END SUBROUTINE HBONDS_SKINNER_INTERNAL
 
 
-SUBROUTINE SKINNER_PARAMETER (molh,hi,vecino,molo,Nval)
+SUBROUTINE SKINNER_PARAMETER_INTERNAL (molh,hi,vecino,molo,Nval)
 
   IMPLICIT NONE
 
@@ -429,7 +562,7 @@ SUBROUTINE SKINNER_PARAMETER (molh,hi,vecino,molo,Nval)
   Nval=exp(-darr(molh,hi,vecino)/0.3430d0)*(7.10d0-0.050d0*aux+0.000210d0*aux**2)
 
 
-END SUBROUTINE SKINNER_PARAMETER
+END SUBROUTINE SKINNER_PARAMETER_INTERNAL
 
 
 SUBROUTINE BUILD_HBONDS_LIMIT_NOSIMETRIC ()

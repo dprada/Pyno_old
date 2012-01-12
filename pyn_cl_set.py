@@ -48,6 +48,7 @@ class labels_unit():                           # Every unit (atom) has at least 
         self.index=None
         self.pdb_index=None
         self.covalent_bonds=[]                 # List of atoms covalently bonded.
+        self.hbonds=[]                         # Atom h-bonded: [[atom_index][strength]]
 
 class labels_set(labels_unit):                 # Every set of units (chain, residue, molecule) has at least these attributes
     def __init__(self):
@@ -237,7 +238,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 atom.index=ii                   # atom index for pynoramix
                 atom.resid.index=jj             # resid index for pynoramix
                 atom.chain.index=kk
-
+                atom.hbonds=[]
             ### Setting up the subsets: residues, waters, chains.
 
             # Auxiliary dictionary to build resids and waters.
