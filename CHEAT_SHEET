@@ -201,8 +201,25 @@ build_fluct_anm(system,anm,mode=[6,7,8],amplitude=8.0,steps=60)
 
 
 #################################################################################
-##########    WATER ANALYSIS   (pyn_cl_xxx.py, pyn_fort_xxx.f90) 
+##########    WATER ANALYSIS   (pyn_cl_water.py, pyn_fort_water.f90) 
 #################################################################################
 
 # External function:
-hbonds_water(definition='Skinner',system1=watbox)   # The function has an output but also updates prot.water[i].H1.hbonds and prot.atom[814].hbonds
+hbonds_water(definition='Skinner',system1=watbox)                            # The function has an output but also updates prot.water[i].H1.hbonds and prot.atom[814].hbonds
+skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None)   # Skinner parameter between the O and the Hi of two different waters 
+mss_shell=mss_water(watbox)                                                  # Microstates of the watbox
+mss_shell_ind=mss_water(watbox,ind_waters=True)                              # Water indexes corresponding to the microstates
+net=kinetic_network(system=watbox,file_traj='traj.bin',begin=0,end=100)      # Kinetic network
+
+Ex:
+
+output=hbonds_water(definition='Skinner',system1=watbox)
+prot.water[i].H1.hbonds
+prot.atom[814].hbonds
+
+Nval=skinner_parameter(system=watbox,index_wat_o=810,index_wat_h=10,index_h=1)  # Skinner parameter between watbox.water[810].O and watbox.water[10].H1
+mss_shell=mss_water(watbox)
+mss_shell[10]
+mss_shell_ind=mss_water(watbox,ind_waters=True)
+mss_shell_ind[10]
+
