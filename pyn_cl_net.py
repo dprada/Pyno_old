@@ -212,7 +212,7 @@ def traj2net(filename=None,num_particles=0,num_frames=0,output=None):
     return None
 
 
-def merge_nets(net1=None,net2=None):
+def merge_nets(net1=None,net2=None,verbose=True):
 
     net_total=cl_net(verbose=False)
 
@@ -222,16 +222,16 @@ def merge_nets(net1=None,net2=None):
     net_total.keys_inv=copy.deepcopy(net1.keys_inv)
     total_num_nodes=net1.num_nodes
 
-    net2_total=[0 for x in range(net2.num_nodes)]
+    net2_to_total=[0 for x in range(net2.num_nodes)]
 
     for ii in range(net2.num_nodes):
         try :
             jj=net1.keys[net2.keys_inv[ii]]
-            net2_total[ii]=jj
+            net2_to_total[ii]=jj
         except:
             net_total.keys[net2.keys_inv[ii]]=total_num_nodes
             net_total.keys_inv[total_num_nodes]=net2.keys_inv[ii]
-            net2_total[ii]=total_num_nodes
+            net2_to_total[ii]=total_num_nodes
             total_num_nodes+=1
 
     net_total.num_nodes=total_num_nodes
@@ -244,12 +244,24 @@ def merge_nets(net1=None,net2=None):
     for ii in range(net1.num_nodes,total_num_nodes):
         net_total.links.append({})
 
-    for aa in range(net1.num_nodes):
-        for ii,jj in net1.links[aa].iteritems():
+    for aa in range(net2.num_nodes):
+        aaa=net2_to_total[aa]
+        for ii,jj in net2.links[aa].iteritems():
+            iii=net2_to_total[ii]
             try:
-                net_total.links[aa][ii]+=jj
+                net_total.links[aaa][iii]+=jj
             except:
-                net_total.links[aa][ii]=jj
+                net_total.links[aaa][iii]=jj
 
+    for ii in range(net_total.num_nodes):
+       net_total.k_out_node.append(len(net_total.links[ii]))
+       net_total.weight_node.append(sum(net_total.links[ii].values()))
+       net_total.num_links=sum(net_total.k_out_node)
+       net_total.k_total=net_total.num_links
+       net_total.k_max=max(net_total.k_out_node)
+       net_total.weight_total=sum(net_total.weight_node)
+
+    if verbose:
+        net_total.info()
 
     return net_total
