@@ -762,6 +762,7 @@ def make_selection(system,condition):                 #####system - your system
 			 for ii in range(len(aux_lists[jj])):
 				last_list.append(aux_lists[jj][ii])
 
+        ll2.sort()
     	sux=extracting_sel(system,ll2)
 
 
