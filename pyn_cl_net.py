@@ -1,5 +1,6 @@
 from numpy import *
 import pyn_fort_net as f_net
+import copy
 
 #####################################################################################
 ##### Networks
@@ -7,7 +8,7 @@ import pyn_fort_net as f_net
 
 class cl_net():
 
-    def __init__(self,file_net=None,file_keys=None):
+    def __init__(self,file_net=None,file_keys=None,verbose=True):
 
         self.init_net()
 
@@ -16,7 +17,8 @@ class cl_net():
         if self.file_keys!=None:
             self.read_keys(self.file_keys)
 
-        self.info()
+        if verbose:
+            self.info()
 
         return
 
@@ -210,3 +212,44 @@ def traj2net(filename=None,num_particles=0,num_frames=0,output=None):
     return None
 
 
+def merge_nets(net1=None,net2=None):
+
+    net_total=cl_net(verbose=False)
+
+    # merging the labels and keys of nodes
+
+    net_total.keys=copy.deepcopy(net1.keys)
+    net_total.keys_inv=copy.deepcopy(net1.keys_inv)
+    total_num_nodes=net1.num_nodes
+
+    net2_total=[0 for x in range(net2.num_nodes)]
+
+    for ii in range(net2.num_nodes):
+        try :
+            jj=net1.keys[net2.keys_inv[ii]]
+            net2_total[ii]=jj
+        except:
+            net_total.keys[net2.keys_inv[ii]]=total_num_nodes
+            net_total.keys_inv[total_num_nodes]=net2.keys_inv[ii]
+            net2_total[ii]=total_num_nodes
+            total_num_nodes+=1
+
+    net_total.num_nodes=total_num_nodes
+
+    
+    # merging the links
+
+    net_total.links=copy.deepcopy(net1.links)
+
+    for ii in range(net1.num_nodes,total_num_nodes):
+        net_total.links.append({})
+
+    for aa in range(net1.num_nodes):
+        for ii,jj in net1.links[aa].iteritems():
+            try:
+                net_total.links[aa][ii]+=jj
+            except:
+                net_total.links[aa][ii]=jj
+
+
+    return net_total
