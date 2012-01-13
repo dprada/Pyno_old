@@ -131,7 +131,7 @@ def mss_water (system=None,ind_waters=False):
 
 class kinetic_network(cl_net):
     
-    def __init__(self,system=None,file_traj=None,begin=None,end=None):
+    def __init__(self,system=None,file_traj=None,begin=None,end=None,verbose=True):
 
         self.init_net()
         self.file_traj=file_traj
@@ -242,7 +242,8 @@ class kinetic_network(cl_net):
         self.k_max=max(self.k_out_node)
         self.weight_total=sum(self.weight_node)
 
-        self.info()
+        if verbose:
+            self.info()
 
         return 
         
