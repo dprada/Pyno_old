@@ -38,6 +38,11 @@ class cl_net():
         self.file_net=None
         self.file_keys=None
 
+        self.Ts=False
+        self.T_ind=[]
+        self.T_start=[]
+        self.T_weight=[]
+        
 
     def info(self):
 
@@ -101,6 +106,7 @@ class cl_net():
         self.num_links=sum(self.k_out_node)
         self.k_total=self.num_links
         self.weight_total=sum(self.weight_node)
+        self.Ts=True
         
 
     def read_keys(self,name_file):
@@ -130,47 +136,73 @@ class cl_net():
 
         self.keys_inv=dict((v,k) for k, v in self.keys.iteritems())
 
-    def symmetrize(self):
+    def symmetrize(self,new_net=False,verbose=True):
 
-        temp=cl_net()
-        temp.key=self.key
-        temp.file_net=self.file_net
-        temp.file_keys=self.file_keys
-        temp.num_nodes=self.num_nodes
+        temp=cl_net(verbose=False)
+        temp.keys=copy.deepcopy(self.keys)
+        temp.keys_inv=copy.deepcopy(self.keys_inv)
+        temp.file_net=copy.deepcopy(self.file_net)
+        temp.file_keys=copy.deepcopy(self.file_keys)
+        temp.num_nodes=copy.deepcopy(self.num_nodes)
+
         aux={}
         for ii in range(self.num_nodes):
-            for jj in self.links_out[ii].keys():
+            for jj in self.links[ii].keys():
                 aux[(ii,jj)]=0
                 aux[(jj,ii)]=0
         temp.k_total=len(aux)
         del(aux)        
-        pfff=f.aux_funcs.symmetrize_net(temp.k_total,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
+
+        if self.Ts==False :
+
+            self.Ts=True
+            self.T_ind=zeros(shape=(self.k_total),dtype=int)
+            self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
+            self.T_weight=zeros(shape=(self.k_total),dtype=int)
+
+            print 'We have to compute the Ts'
+            
+
+        pfff=f_net.funcs.symmetrize_net(temp.k_total,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
         temp.k_max=pfff[0]
         temp.T_weight=pfff[1]
         temp.T_ind=pfff[2]
         temp.T_start=pfff[3]
-        temp.weight=pfff[4]
-        temp.weight_total=sum(temp.weight)
-        temp.k_out=zeros(temp.num_nodes)
-        temp.links_out=[]
+        temp.Ts=True
+        temp.weight_node=pfff[4]
+        temp.weight_total=sum(temp.weight_node)
+        temp.k_out_node=zeros(temp.num_nodes)
+        temp.links=[]
         for ii in range(temp.num_nodes):
-            temp.links_out.append({})
+            temp.links.append({})
             for jj in range(temp.T_start[ii],temp.T_start[ii+1]):
                 neigh=temp.T_ind[jj]
-                temp.links_out[ii][neigh-1]=temp.T_weight[jj]
-                temp.k_out[ii]+=1
+                temp.links[ii][neigh-1]=temp.T_weight[jj]
+                temp.k_out_node[ii]+=1
 
         temp.k_in=[]
-
-        temp.info()
+        
+        if verbose==True :
+            temp.info()
 
         return temp
 
-    def gradient_clusters(self):
 
-        self.num_clusters,self.node_belongs2=f_net.funcs.grad(self.weight,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
 
-        print '# Number of clusters: ',self.num_clusters
+    def gradient_clusters(self,verbose=True):
+
+        if self.Ts==False :
+
+            self.Ts=True
+            self.T_ind=zeros(shape=(self.k_total),dtype=int)
+            self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
+            self.T_weight=zeros(shape=(self.k_total),dtype=int)
+
+            print 'We have to compute the Ts'
+            
+
+        self.num_clusters,self.node_belongs2=f_net.funcs.grad(self.weight_node,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
+
         Clust={}
         Aux={}
         for ii in range(len(self.node_belongs2)):
@@ -196,7 +228,12 @@ class cl_net():
         self.cluster_weight=zeros(self.num_clusters)
         for ii in range(self.num_clusters):
             for jj in self.clust_info[ii]:
-                self.cluster_weight[ii]+=self.weight[jj]
+                self.cluster_weight[ii]+=self.weight_node[jj]
+
+        # Output: self.clust_info, self.representants, self.node_belongs2, self.cluster_weight, self.num_clusters
+        if verbose:
+            print '# Number of clusters: ',self.num_clusters
+
 
     def cfep_pfold(self,A=0,B=0,num_bins=1000):
 

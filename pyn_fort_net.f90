@@ -14,17 +14,17 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
   INTEGER,INTENT(IN)::N_nodes,Ktot,newKtot
   INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+
   INTEGER,DIMENSION(N_nodes),INTENT(OUT)::Pe
   INTEGER,DIMENSION(N_nodes+1),INTENT(OUT)::TT_start
   INTEGER,DIMENSION(newKtot),INTENT(OUT)::TT_ind,TT_tau
   INTEGER,INTENT(OUT)::newKmax
+
   LOGICAL::interruptor
   INTEGER::i,j,l,h,g,gg,destino
   integer,dimension(:),allocatable::salidas,auxx1,auxx2,SL
   TYPE(array_pointer),DIMENSION(:),POINTER::F_ind,flux
   
-
-
   Pe=0
   TT_start=0
   TT_ind=0
@@ -1039,3 +1039,4 @@ END MODULE funcs
 
 
 !! f2py --f90flags='-fast' -c -m pyn_fort_net pyn_fort_net.f90
+!!f2py -c -m pyn_fort_net pyn_fort_net.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
