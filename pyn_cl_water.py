@@ -122,7 +122,7 @@ def mss_water (system=None,ind_waters=False):
 
         if ind_waters==False:
             mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
-        else:
+        elif ind_waters==True:
             mss=f_water.wat.microstates_ind_wat(system.num_waters,system.frame[0].box[0,0])
 
         return mss
