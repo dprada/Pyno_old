@@ -78,8 +78,6 @@ class cl_net():
             node_ind=data2[jj]
             k_out=data2[jj+1]
             weight=data2[jj+2]
-            self.k_out_node.append(k_out)
-            self.weight_node.append(weight)
             self.T_start[ii]=sumk
             self.links.append({})
             jj=jj+2
