@@ -12,10 +12,10 @@ class cl_net():
 
         self.init_net()
 
-        if self.file_net!=None:
-            self.read_net(self.file_net)
-        if self.file_keys!=None:
-            self.read_keys(self.file_keys)
+        if file_net!=None:
+            self.read_net(file_net)
+        if file_keys!=None:
+            self.read_keys(file_keys)
 
         if verbose:
             self.info()
@@ -50,15 +50,19 @@ class cl_net():
 
     def read_net(self,name_file):
 
+        self.file_net=name_file
+
+
         ff=open(name_file,'r')
         line=ff.readline()
         self.num_nodes=int(line.split()[0])
-        self.k_max=int(line.split()[1])
-        self.k_total=int(line.split()[2])
 
-        self.T_ind=zeros(shape=(self.k_total),dtype=int)
+        k_max=int(line.split()[1])
+        k_total=int(line.split()[2])
+
+        self.T_ind=zeros(shape=(k_total),dtype=int)
         self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
-        self.T_weight=zeros(shape=(self.k_total),dtype=int)
+        self.T_weight=zeros(shape=(k_total),dtype=int)
         
         data=ff.read()
         ff.close()
@@ -74,8 +78,8 @@ class cl_net():
             node_ind=data2[jj]
             k_out=data2[jj+1]
             weight=data2[jj+2]
-            self.k_out.append(k_out)
-            self.weight.append(weight)
+            self.k_out_node.append(k_out)
+            self.weight_node.append(weight)
             self.T_start[ii]=sumk
             self.links.append({})
             jj=jj+2
@@ -90,12 +94,23 @@ class cl_net():
                 self.links[ii][neigh-1]=flux
         self.T_start[self.num_nodes]=sumk
 
-        self.info()
+        for ii in range(self.num_nodes):
+            self.k_out_node.append(len(self.links[ii]))
+            self.weight_node.append(sum(self.links[ii].values()))
+
+
+        self.k_max=max(self.k_out_node)
+        self.num_links=sum(self.k_out_node)
+        self.k_total=self.num_links
+        self.weight_total=sum(self.weight_node)
+        
 
     def read_keys(self,name_file):
 
+        self.file_keys=name_file
+
         ff=open(name_file,'r')
-        self.key=[]
+
         for ii in range(self.num_nodes):
             line=ff.readline()
             mss=line.split()[1]+' |'
@@ -113,7 +128,9 @@ class cl_net():
             mss=mss+' |'
             for jj in range(15,18):
                 mss=mss+' '+line.split()[jj]
-            self.key.append(mss)
+            self.keys[mss]=int(line.split()[0])-1
+
+        self.keys_inv=dict((v,k) for k, v in self.keys.iteritems())
 
     def symmetrize(self):
 
