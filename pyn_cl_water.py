@@ -242,6 +242,26 @@ class kinetic_network(cl_net):
         self.k_max=max(self.k_out_node)
         self.weight_total=sum(self.weight_node)
 
+        self.T_ind=zeros(shape=(self.k_total),dtype=int,order='Fortran')
+        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
+        self.T_weight=zeros(shape=(self.k_total),dtype=int,order='Fortran')
+
+        kk=0
+        for ii in range(self.num_nodes):
+            self.T_start[ii]=kk
+            aux_links=self.links[ii].keys()
+            if ii in aux_links:
+                self.T_ind[kk]=ii+1
+                self.T_weight[kk]=self.links[ii][ii]
+                aux_links.remove(ii)
+                kk+=1
+            for jj in aux_links:
+                self.T_ind[kk]=jj+1
+                self.T_weight[kk]=self.links[ii][jj]
+                kk+=1
+        self.T_start[self.num_nodes]=kk
+        self.Ts=True
+
         if verbose:
             self.info()
 

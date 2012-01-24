@@ -65,9 +65,9 @@ class cl_net():
         k_max=int(line.split()[1])
         k_total=int(line.split()[2])
 
-        self.T_ind=zeros(shape=(k_total),dtype=int)
-        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
-        self.T_weight=zeros(shape=(k_total),dtype=int)
+        self.T_ind=zeros(shape=(k_total),dtype=int,order='Fortran')
+        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
+        self.T_weight=zeros(shape=(k_total),dtype=int,order='Fortran')
         
         data=ff.read()
         ff.close()
