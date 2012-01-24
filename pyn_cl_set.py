@@ -724,6 +724,27 @@ def dot_product_3d(vect1,vect2):
     return f.aux_funcs_general.proj3d(vect1,vect2,len(vect1))
 
 
+def isothermal_compressibility(system,Temp,input_file,frame=None,begin=None,end=None):
+
+    frame=[ii for ii in range(begin,end+1)]
+
+    V2a=0.0
+    Va=0.0
+    Kt=0.0
+    for ii in frame :
+        system.delete_coors()
+        system.load_coors (input_file,frame=ii)
+        xx=0.0
+        xx=system.frame[0].box[0][0]*system.frame[0].box[1][1]*system.frame[0].box[2][2]
+        Va+=xx
+        V2a+=xx**2
+    
+    Va=Va/(len(frame)*1.0)
+    V2a=V2a/(len(frame)*1.0)
+    Kt=(V2a-Va**2)/(Temp*Va)
+    
+    return Kt*0.10,'(nm/Kb)'
+
 #######################################################
 ####### Selection algorithm:    (Any suggestion to Roman)
 
