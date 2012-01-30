@@ -107,6 +107,8 @@ SUBROUTINE skinner_parameter (index_wat_o,index_wat_h,index_h,lenbox,Nval)
 
 
   aux=dot_product(perp(:),norm_htoo(:))
+  if (aux>=1.0d0) aux=1.0d0
+  if (aux<=-1.0d0) aux=-1.0d0
   aux=acos(aux)
   aux=aux*(90/pi)
   IF (aux>90) THEN
@@ -550,6 +552,7 @@ SUBROUTINE SKINNER_PARAMETER_INTERNAL (molh,hi,vecino,molo,Nval)
 
   aux=dot_product(wat_perp(molo,:),vect_norm_htoo(molh,hi,vecino,:))
   if (aux>=1.0d0) aux=1.0d0
+  if (aux<=-1.0d0) aux=-1.0d0
   aux=acos(aux)
   aux=aux*(90/pi)
   IF (aux>90) THEN
