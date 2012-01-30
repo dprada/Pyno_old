@@ -549,6 +549,7 @@ SUBROUTINE SKINNER_PARAMETER_INTERNAL (molh,hi,vecino,molo,Nval)
   REAL::aux
 
   aux=dot_product(wat_perp(molo,:),vect_norm_htoo(molh,hi,vecino,:))
+  if (aux>=1.0d0) aux=1.0d0
   aux=acos(aux)
   aux=aux*(90/pi)
   IF (aux>90) THEN
