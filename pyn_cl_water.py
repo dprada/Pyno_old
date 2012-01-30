@@ -12,7 +12,11 @@ import pickle as pic
 
 
 
-def hbonds_water(definition=None,system1=None,system2=None,frame=None,optimize=False):
+def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0.00850,optimize=False):
+
+    # Set up parameters as the Skinner Parameter:
+
+    f_water.wat.sk_param=sk_param
 
     # Reset of previous hbonds
 
@@ -100,38 +104,41 @@ def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None
 
 
 
-def mss_water (system=None,ind_waters=False):
+def mss_water (system=None,ind_waters=False,hb_definition='Skinner',sk_param=0.00850):
     
+     # Set up parameters as the Skinner Parameter:
 
-        if system==None:
-            print 'Error: input variables needed'
-            print 'mss_water(system=None)'
-            return None
+    f_water.wat.sk_param=sk_param
+
+    if system==None:
+        print 'Error: input variables needed'
+        print 'mss_water(system=None)'
+        return None
 
         ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
-        f_water.wat.switch=0          ## Optimization for hbonds=False in first frame
-        f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
-        f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
-        f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+    f_water.wat.switch=0          ## Optimization for hbonds=False in first frame
+    f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
+    f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+    f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
 
 
-        for jj in range(system.num_waters):
-            f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-            f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-            f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+    for jj in range(system.num_waters):
+        f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+        f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+        f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
 
-        if ind_waters==False:
-            mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
-        elif ind_waters==True:
-            mss=f_water.wat.microstates_ind_wat(system.num_waters,system.frame[0].box[0,0])
+    if ind_waters==False:
+        mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
+    elif ind_waters==True:
+        mss=f_water.wat.microstates_ind_wat(system.num_waters,system.frame[0].box[0,0])
 
-        return mss
+    return mss
         
 
 
 class kinetic_network(cl_net):
     
-    def __init__(self,system=None,file_traj=None,begin=None,end=None,verbose=True):
+    def __init__(self,system=None,file_traj=None,begin=None,end=None,hb_definition='Skinner',sk_param=0.00850,verbose=True):
 
         self.init_net()
         self.file_traj=file_traj
@@ -142,6 +149,10 @@ class kinetic_network(cl_net):
             return None
 
         
+        # Set up parameters as the Skinner Parameter:
+        
+        f_water.wat.sk_param=sk_param
+
         ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
         system.last_frame=begin
         f_water.wat.switch=0          ## Optimization for hbonds=False in first frame

@@ -3,7 +3,7 @@ MODULE WAT
 INTEGER::switch
 INTEGER::nw,natw
 INTEGER::nparts,nparts2
-REAL::Lbox,Lbox2
+REAL::Lbox,Lbox2,sk_param
 
 REAL, DIMENSION(:,:,:), ALLOCATABLE :: XARR    ! posiciones (molecula,atomo,coordenada)
 REAL, ALLOCATABLE, DIMENSION(:,:,:) :: DARR    !! (index_water,Hi,num_neights)
@@ -72,6 +72,7 @@ SUBROUTINE skinner_parameter (index_wat_o,index_wat_h,index_h,lenbox,Nval)
 !  IMPLICIT NONE
 
   INTEGER,INTENT(IN)::index_wat_o,index_wat_h,index_h
+  REAL, INTENT(IN)::lenbox
   REAL,    ALLOCATABLE, DIMENSION(:) :: norm_htoo    !! (index_water,Hi,num_neights)
   REAL,    ALLOCATABLE, DIMENSION(:) :: perp,aux_vect
   REAL::dd,aux
@@ -95,9 +96,12 @@ SUBROUTINE skinner_parameter (index_wat_o,index_wat_h,index_h,lenbox,Nval)
   Nval=0.0d0
 
   aux_vect=XARR(index_wat_o+1,1,:)-XARR(index_wat_h+1,index_h+1,:)
+
   CALL PBC (aux_vect)
   dd=sqrt(dot_product(aux_vect,aux_vect))
   norm_htoo=aux_vect/dd
+
+
 
   CALL PERPENDICULAR_WATER(index_wat_o+1,perp)
 
@@ -475,24 +479,22 @@ SUBROUTINE HBONDS_SKINNER_INTERNAL()
      DO j=1,2
         gg=0
         DO jj=1,nparts
-           IF (darr(i,j,jj)<2.30770d0) THEN  !! darr is in 10^{-10} m
-              g=iarr(i,j,jj)
-              CALL SKINNER_PARAMETER_INTERNAL(i,j,jj,g,aux1) ! mol H, Hi, vecino, mol O, N val
+           g=iarr(i,j,jj)
+           CALL SKINNER_PARAMETER_INTERNAL(i,j,jj,g,aux1) ! mol H, Hi, vecino, mol O, N val
 
-              IF (aux1>0.00850d0) THEN
-                 gg=gg+1
-                 num_h2o(i,j)=gg
-                 h2o(i,j,gg)=g
-                 strength_h2o(i,j,gg)=aux1     ! Tomaré N como criterio para eliminar hbonds
-                 !lo meto en los oxigenos
-                 h=num_o2h(g)+1
-                 num_o2h(g)=h
-                 o2h(g,h)=i
-                 o2which(g,h)=j
-                 strength_o2h(g,h)=aux1
-              END IF
-
+           IF (aux1>sk_param) THEN
+              gg=gg+1
+              num_h2o(i,j)=gg
+              h2o(i,j,gg)=g
+              strength_h2o(i,j,gg)=aux1     ! Tomaré N como criterio para eliminar hbonds
+              !lo meto en los oxigenos
+              h=num_o2h(g)+1
+              num_o2h(g)=h
+              o2h(g,h)=i
+              o2which(g,h)=j
+              strength_o2h(g,h)=aux1
            END IF
+
         END DO
         !ordeno lo que sale de los hidrogenos
         IF (gg>1) THEN
