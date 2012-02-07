@@ -104,7 +104,7 @@ def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None
 
 
 
-def mss_water (system=None,ind_waters=False,hb_definition='Skinner',sk_param=0.00850):
+def mss_water (system=None,ind_waters=False,definition='Skinner',sk_param=0.00850):
     
      # Set up parameters as the Skinner Parameter:
 
@@ -138,7 +138,7 @@ def mss_water (system=None,ind_waters=False,hb_definition='Skinner',sk_param=0.0
 
 class kinetic_network(cl_net):
     
-    def __init__(self,system=None,file_traj=None,begin=None,end=None,hb_definition='Skinner',sk_param=0.00850,verbose=True):
+    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,verbose=True):
 
         self.init_net()
         self.file_traj=file_traj

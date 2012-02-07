@@ -31,6 +31,9 @@ CONTAINS
 
 SUBROUTINE hbonds_skinner (num_waters,lenbox)
 
+  REAL,INTENT(IN)::lenbox
+  INTEGER,INTENT(IN)::num_waters
+
   nw=num_waters
   Lbox=lenbox
   Lbox2=Lbox/2.0d0
@@ -566,7 +569,6 @@ SUBROUTINE SKINNER_PARAMETER_INTERNAL (molh,hi,vecino,molo,Nval)
 
   !! darr is in 10^{-10} m
   Nval=exp(-darr(molh,hi,vecino)/0.3430d0)*(7.10d0-0.050d0*aux+0.000210d0*aux**2)
-
 
 END SUBROUTINE SKINNER_PARAMETER_INTERNAL
 
