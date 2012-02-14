@@ -3,52 +3,66 @@ MODULE WAT
 INTEGER::switch
 INTEGER::nw,natw
 INTEGER::nparts,nparts2
-REAL::Lbox,Lbox2,sk_param
+INTEGER::hb_def
+DOUBLE PRECISION::sk_param
 
-REAL, DIMENSION(:,:,:), ALLOCATABLE :: XARR    ! posiciones (molecula,atomo,coordenada)
-REAL, ALLOCATABLE, DIMENSION(:,:,:) :: DARR    !! (index_water,Hi,num_neights)
+DOUBLE PRECISION, DIMENSION(:,:),ALLOCATABLE :: Lbox,Lbox2
+
+DOUBLE PRECISION, DIMENSION(:,:,:), ALLOCATABLE :: XARR    ! posiciones (molecula,atomo,coordenada)
+DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:,:) :: DARR    !! (index_water,Hi,num_neights)
 INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: IARR    !! (index_water,Hi,num_neights)
-REAL,    ALLOCATABLE, DIMENSION(:,:,:,:) :: vect_norm_htoo    !! (index_water,Hi,num_neights)
-REAL,    ALLOCATABLE, DIMENSION(:,:) :: wat_perp
+DOUBLE PRECISION,    ALLOCATABLE, DIMENSION(:,:,:,:) :: vect_norm_htoo    !! (index_water,Hi,num_neights)
+DOUBLE PRECISION,    ALLOCATABLE, DIMENSION(:,:) :: wat_perp
 
 INTEGER, ALLOCATABLE, DIMENSION(:,:) :: num_h2o, o2h, o2which
 INTEGER, ALLOCATABLE, DIMENSION(:) :: num_o2h
 INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: h2o
-REAL, ALLOCATABLE, DIMENSION(:,:,:) :: strength_h2o
-REAL, ALLOCATABLE, DIMENSION(:,:) :: strength_o2h
+DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:,:) :: strength_h2o
+DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:) :: strength_o2h
 
 INTEGER, ALLOCATABLE, DIMENSION(:,:) :: hbsmol,shell_w
 INTEGER, ALLOCATABLE, DIMENSION(:) :: ms_short,ms_short2,mss_ind_wat
 
-REAL::pi
+DOUBLE PRECISION::pi
 
 PARAMETER (pi=acos(-1.0d0))
 PARAMETER (natw=3)
 PARAMETER (nparts=8)
 PARAMETER (nparts2=nparts*nparts*2*2)
 
+
 CONTAINS
 
-SUBROUTINE hbonds_skinner (num_waters,lenbox)
 
-  REAL,INTENT(IN)::lenbox
-  INTEGER,INTENT(IN)::num_waters
+!##################################################################################
+!##################################################################################
 
-  nw=num_waters
-  Lbox=lenbox
-  Lbox2=Lbox/2.0d0
 
-  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
-  ALLOCATE(wat_perp(nw,3))
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!! GENERAL FUNCTIONS FOR EVERY HBOND DEFINITION
 
-  vect_norm_htoo=0.0d0
-  wat_perp=0.0d0
+!!!
+!!! MEMORY
+!!!
 
-  !! Optimization for hbonds
+SUBROUTINE INITIALIZE_COORS_MEMORY()
+  ALLOCATE(xarr(nw,3,3),iarr(nw,2,nparts),darr(nw,2,nparts),Lbox(3,3),Lbox2(3,3))
+  xarr=0.0d0
+  iarr=0
+  darr=0.0d0
+  Lbox=0.0d0
+  Lbox2=0.0d0
 
+END SUBROUTINE INITIALIZE_COORS_MEMORY
+
+SUBROUTINE FREE_COORS_MEMORY()
+  DEALLOCATE(xarr,iarr,darr,Lbox,Lbox2)
+END SUBROUTINE FREE_COORS_MEMORY
+
+SUBROUTINE INITIALIZE_HBONDS_MEMORY()
   ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
   ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
-
   num_h2o=0
   num_o2h=0
   o2h=0
@@ -56,245 +70,107 @@ SUBROUTINE hbonds_skinner (num_waters,lenbox)
   o2which=0
   strength_h2o=0.0d0
   strength_o2h=0.0d0
+  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
+  ALLOCATE(wat_perp(nw,3))
+  vect_norm_htoo=0.0d0
+  wat_perp=0.0d0
+END SUBROUTINE INITIALIZE_HBONDS_MEMORY
 
-  IF (switch==0) THEN
-     CALL DMAT()
-     switch=1
-  ELSE
-     CALL DMAT_EF()
-  END IF
-
-  CALL HBONDS_SKINNER_INTERNAL()
-
-  DEALLOCATE(vect_norm_htoo,wat_perp)
-
-END SUBROUTINE hbonds_skinner
-
-SUBROUTINE skinner_parameter (index_wat_o,index_wat_h,index_h,lenbox,Nval)
-
-!  IMPLICIT NONE
-
-  INTEGER,INTENT(IN)::index_wat_o,index_wat_h,index_h
-  REAL, INTENT(IN)::lenbox
-  REAL,    ALLOCATABLE, DIMENSION(:) :: norm_htoo    !! (index_water,Hi,num_neights)
-  REAL,    ALLOCATABLE, DIMENSION(:) :: perp,aux_vect
-  REAL::dd,aux
-  REAL,INTENT(OUT)::Nval
-
-
-  Lbox=lenbox
-  Lbox2=Lbox/2.0d0
-
-!  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
-!  ALLOCATE(wat_perp(nw,3))
-
-  ALLOCATE(norm_htoo(3),aux_vect(3))
-  ALLOCATE(perp(3))
-
-  norm_htoo=0.0d0
-  perp=0.0d0
-  aux_vect=0.0d0
-  dd=0.0d0
-  aux=0.0d0
-  Nval=0.0d0
-
-  aux_vect=XARR(index_wat_o+1,1,:)-XARR(index_wat_h+1,index_h+1,:)
-
-  CALL PBC (aux_vect)
-  dd=sqrt(dot_product(aux_vect,aux_vect))
-  norm_htoo=aux_vect/dd
-
-
-
-  CALL PERPENDICULAR_WATER(index_wat_o+1,perp)
-
-
-  aux=dot_product(perp(:),norm_htoo(:))
-  if (aux>=1.0d0) aux=1.0d0
-  if (aux<=-1.0d0) aux=-1.0d0
-  aux=acos(aux)
-  aux=aux*(90/pi)
-  IF (aux>90) THEN
-     print*,'here error 3.14',aux
-     STOP
-  END IF
-  IF (aux<0) THEN
-     print*,'here error 3.14',aux
-     STOP
-  END IF
-
-  !! darr is in 10^{-10} m
-  Nval=exp(-dd/0.3430d0)*(7.10d0-0.050d0*aux+0.000210d0*aux**2)
-
-
-  DEALLOCATE(norm_htoo,perp,aux_vect)
-
-END SUBROUTINE skinner_parameter
-
-
-
-SUBROUTINE free_hbonds()
+SUBROUTINE FREE_HBONDS_MEMORY()
   DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
   DEALLOCATE(strength_o2h,strength_h2o)
-END SUBROUTINE free_hbonds
+  DEALLOCATE(vect_norm_htoo,wat_perp)
+END SUBROUTINE FREE_HBONDS_MEMORY
 
-SUBROUTINE microstates (num_waters,lenbox,mss)
-
-  IMPLICIT NONE 
-
-  INTEGER,INTENT(IN)::num_waters
-  REAL,INTENT(IN)::lenbox
-
-  INTEGER,DIMENSION(num_waters,17),INTENT(OUT)::mss
-
-  INTEGER::i,j,k
-  
-  nw=num_waters
-  Lbox=lenbox
-  Lbox2=Lbox/2.0d0
-
-
-
-!  ALLOCATE(IARR(nw,2,nparts))    ! indice de los nparts atomos de O primeros vecinos de un H dado (indice molecula, H1o H2, orden primeros vecinos)
-!  ALLOCATE(DARR(nw,2,nparts))    ! distancia de los pares O-H de acuerdo con iarr
-  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
-  ALLOCATE(wat_perp(nw,3))
-
-
-!  DARR=0.0d0
-!  IARR=0
-  vect_norm_htoo=0.0d0
-  wat_perp=0.0d0
-
-  !! Optimization for hbonds
-
-  ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
-  ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
-  ALLOCATE(hbsmol(nw,6))
-
-  num_h2o=0
-  num_o2h=0
-  o2h=0
-  h2o=0
-  o2which=0
-  strength_h2o=0.0d0
-  strength_o2h=0.0d0
+SUBROUTINE INITIALIZE_MSS_MEMORY()
+  ALLOCATE(hbsmol(nw,6),shell_w(nw,17),ms_short(17),ms_short2(17),mss_ind_wat(17))     ! numero maximo de moleculas vecinas en las dos capas
   hbsmol=0
-
-  IF (switch==0) THEN
-     CALL DMAT()
-     switch=1
-  ELSE
-     CALL DMAT_EF ()
-  END IF
-
-
-  ALLOCATE(shell_w(nw,17),ms_short(17),ms_short2(17),mss_ind_wat(17))     ! numero maximo de moleculas vecinas en las dos capas
-
   shell_w=0
   ms_short=0
   ms_short2=0
   mss_ind_wat=0
+END SUBROUTINE INITIALIZE_MSS_MEMORY
 
-  CALL HBONDS_SKINNER_INTERNAL()
-
-  CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
-  DO j=1,NW      
-     CALL STATE_SHORT_NOSIMETRIC(j)   
-     CALL REMOVE_PERMUT_SHORT_NOSIMETRIC(j)
-     mss(j,:)=ms_short2(:)
-  END DO
+SUBROUTINE FREE_MSS_MEMORY()
+  DEALLOCATE(hbsmol,shell_w,ms_short2,ms_short,mss_ind_wat)
+END SUBROUTINE FREE_MSS_MEMORY
 
 
-  DEALLOCATE(vect_norm_htoo,wat_perp)
-  DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
-  DEALLOCATE(strength_o2h,strength_h2o)
-  DEALLOCATE(shell_w,ms_short2,ms_short,mss_ind_wat)
-  DEALLOCATE(hbsmol)
+!!!
+!!! AUXILIARY GENERAL FUNCTIONS
+!!!
 
-END SUBROUTINE microstates
+SUBROUTINE PBC(vector)
 
-
-SUBROUTINE microstates_ind_wat (num_waters,lenbox,mss)
-
-  IMPLICIT NONE 
-
-  INTEGER,INTENT(IN)::num_waters
-  REAL,INTENT(IN)::lenbox
-
-  INTEGER,DIMENSION(num_waters,17),INTENT(OUT)::mss
-
-  INTEGER::i,j,k
+  implicit none
+  integer::i
+  DOUBLE PRECISION,dimension(3),intent(INOUT)::vector
   
-  nw=num_waters
-  Lbox=lenbox
-  Lbox2=Lbox/2.0d0
+  DO i=1,3
+     IF (abs(vector(i))>Lbox2(i,i)) THEN
+        IF (vector(i)>Lbox2(i,i)) THEN
+           vector(i)=vector(i)-Lbox(i,i)
+        ELSE
+           vector(i)=vector(i)+Lbox(i,i)
+        END IF
+     END IF
+  END DO
+  
+END SUBROUTINE PBC
 
+SUBROUTINE ALL_NORM_WATER()
 
+  IMPLICIT NONE
+  INTEGER::i
+  DOUBLE PRECISION,DIMENSION(3)::norm
 
-!  ALLOCATE(IARR(nw,2,nparts))    ! indice de los nparts atomos de O primeros vecinos de un H dado (indice molecula, H1o H2, orden primeros vecinos)
-!  ALLOCATE(DARR(nw,2,nparts))    ! distancia de los pares O-H de acuerdo con iarr
-  ALLOCATE(vect_norm_htoo(nw,2,nparts,3))
-  ALLOCATE(wat_perp(nw,3))
-
-
-!  DARR=0.0d0
-!  IARR=0
-  vect_norm_htoo=0.0d0
-  wat_perp=0.0d0
-
-  !! Optimization for hbonds
-
-  ALLOCATE(num_h2o(nw,2),num_o2h(nw),h2o(nw,2,6),o2h(nw,6),o2which(nw,6))
-  ALLOCATE(strength_o2h(nw,6),strength_h2o(nw,2,6))
-  ALLOCATE(hbsmol(nw,6))
-
-  num_h2o=0
-  num_o2h=0
-  o2h=0
-  h2o=0
-  o2which=0
-  strength_h2o=0.0d0
-  strength_o2h=0.0d0
-  hbsmol=0
-
-  IF (switch==0) THEN
-     CALL DMAT()
-     switch=1
-  ELSE
-     CALL DMAT_EF ()
-  END IF
-
-
-  ALLOCATE(shell_w(nw,17),ms_short(17),ms_short2(17),mss_ind_wat(17))     ! numero maximo de moleculas vecinas en las dos capas
-
-  shell_w=0
-  ms_short=0
-  ms_short2=0
-  mss_ind_wat=0
-
-  CALL HBONDS_SKINNER_INTERNAL()
-
-  CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
-  DO j=1,NW      
-     CALL STATE_SHORT_NOSIMETRIC(j)   
-     CALL REMOVE_PERMUT_SHORT_NOSIMETRIC(j)
-     mss(j,:)=mss_ind_wat(:)
-     DO i=1,17
-        mss(j,i)=mss(j,i)-1
-     END DO
+  DO i=1,NW
+     CALL PERPENDICULAR_WATER(i,norm)
+     wat_perp(i,:)=norm
   END DO
 
+END SUBROUTINE ALL_NORM_WATER
 
-  DEALLOCATE(vect_norm_htoo,wat_perp)
-  DEALLOCATE(num_h2o,num_o2h,h2o,o2h,o2which)
-  DEALLOCATE(strength_o2h,strength_h2o)
-  DEALLOCATE(shell_w,ms_short2,ms_short,mss_ind_wat)
-  DEALLOCATE(hbsmol)
+SUBROUTINE PERPENDICULAR_WATER (a,vect)
 
-END SUBROUTINE microstates_ind_wat
+  IMPLICIT NONE
 
-!!!!!!!!!!! INTERNAL SUBROUTINES:
+  INTEGER,INTENT(IN)::a
+  DOUBLE PRECISION,DIMENSION(3),INTENT(OUT)::vect
+  DOUBLE PRECISION,DIMENSION(3)::posh1,posh2
+
+  vect=0.0d0
+
+  posh1=xarr(a,1,:)-xarr(a,2,:)
+  posh2=xarr(a,1,:)-xarr(a,3,:)
+
+  CALL PRODUCT_VECT(posh1,posh2,vect)
+  CALL NORMALIZE_VECT (vect)
+
+END SUBROUTINE PERPENDICULAR_WATER
+
+SUBROUTINE PRODUCT_VECT(a,b,normal)
+
+  DOUBLE PRECISION,DIMENSION(3),INTENT(IN)::a,b
+  DOUBLE PRECISION,DIMENSION(3),INTENT(OUT)::normal
+  DOUBLE PRECISION::norm
+  
+  normal(1)=a(2)*b(3)-a(3)*b(2)
+  normal(2)=-a(1)*b(3)+a(3)*b(1)
+  normal(3)=a(1)*b(2)-a(2)*b(1)
+
+END SUBROUTINE PRODUCT_VECT
+
+SUBROUTINE NORMALIZE_VECT (a)
+
+  DOUBLE PRECISION,DIMENSION(3),INTENT(INOUT)::a
+  DOUBLE PRECISION::norm
+
+  norm=sqrt(dot_product(a,a))
+  a=a/norm
+
+END SUBROUTINE NORMALIZE_VECT
+
 
 SUBROUTINE DMAT()
 
@@ -302,10 +178,10 @@ SUBROUTINE DMAT()
   INTEGER::i,j,jj,g
   LOGICAL,DIMENSION(:),ALLOCATABLE::filter_Hs
   INTEGER,DIMENSION(:),ALLOCATABLE::lista
-  REAL,DIMENSION(:),ALLOCATABLE::dHs
-  REAL,DIMENSION(:,:),ALLOCATABLE::vect_aux
-  REAL,DIMENSION(3)::aux,aux2
-  REAL::norm,val
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::dHs
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::vect_aux
+  DOUBLE PRECISION,DIMENSION(3)::aux,aux2
+  DOUBLE PRECISION::norm,val
 
   ALLOCATE(filter_Hs(NW),dHs(NW),vect_aux(NW,3),lista(nparts))
 
@@ -359,12 +235,12 @@ SUBROUTINE DMAT_EF()
   INTEGER::i,j,jj,g,oo,h,hh,gg
   LOGICAL,DIMENSION(:),ALLOCATABLE::filter_Hs
   LOGICAL,DIMENSION(:),ALLOCATABLE::aux_filter
-  REAL,DIMENSION(:),ALLOCATABLE::dHs
-  REAL,DIMENSION(3)::vect_aux,aux2
-  REAL,DIMENSION(:,:),ALLOCATABLE::vect_aux2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::dHs
+  DOUBLE PRECISION,DIMENSION(3)::vect_aux,aux2
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::vect_aux2
   INTEGER,DIMENSION(:),ALLOCATABLE::list,list2
   INTEGER,DIMENSION(:,:,:),ALLOCATABLE::iarr2
-  REAL::norm,val
+  DOUBLE PRECISION::norm,val
 
   ALLOCATE(list(nparts2),list2(nparts),filter_Hs(nparts2),aux_filter(NW),dHs(nparts2),iarr2(NW,2,nparts))
   iarr2=0
@@ -444,91 +320,101 @@ END DO
 
 DEALLOCATE(list,list2,filter_Hs,aux_filter,dHs)
 
-
-
 IARR=IARR2 
 DEALLOCATE(iarr2)
 
-  
-
 END SUBROUTINE DMAT_EF
 
+!##################################################################################
+!##################################################################################
 
-SUBROUTINE HBONDS_SKINNER_INTERNAL()
+!!!
+!!! HBONDS OF A BOX OF WATER
+!!!
+
+SUBROUTINE hbonds_box ()
+
+  Lbox2=Lbox/2.0d0
+
+  !! Optimization for hbonds
+
+  IF (switch==0) THEN
+     CALL DMAT()
+     switch=1
+  ELSE
+     CALL DMAT_EF()
+  END IF
+
+  SELECT CASE (hb_def)
+  CASE (1)
+     CALL ALL_NORM_WATER ()
+     CALL HBONDS_SKINNER()
+     CALL HBONDS_COMPLETE_OXYGENS()
+     CALL SORTING_HBONDS()
+  CASE DEFAULT
+     PRINT*, 'Error: Hbond definition unknown'
+  END SELECT
+
+END SUBROUTINE hbonds_box
+
+
+
+SUBROUTINE HBONDS_COMPLETE_OXYGENS()
 
   IMPLICIT NONE
-  INTEGER::i,ii,j,jj,g,gg,h,hh
-  REAL::aux1,aux2
-  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
-  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
-  REAL,DIMENSION(:),ALLOCATABLE::back3
-
-  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
-
-
-  CALL ALL_NORM_WATER ()
-
-  num_h2o=0
-  num_o2h=0
-  h2o=0
-  o2h=0
-  o2which=0
-  strength_h2o=0.0d0
-  strength_o2h=0.0d0
-
-  !! Si r<2.13570 A entra para cualquier angulo
-  !! Si r>2.3077 A sale para cualquier angulo
-
+  INTEGER::i,j,jj,g,h
 
   DO i=1,NW
      DO j=1,2
-        gg=0
-        DO jj=1,nparts
-           g=iarr(i,j,jj)
-           CALL SKINNER_PARAMETER_INTERNAL(i,j,jj,g,aux1) ! mol H, Hi, vecino, mol O, N val
-
-           IF (aux1>sk_param) THEN
-              gg=gg+1
-              num_h2o(i,j)=gg
-              h2o(i,j,gg)=g
-              strength_h2o(i,j,gg)=aux1     ! Tomaré N como criterio para eliminar hbonds
-              !lo meto en los oxigenos
-              h=num_o2h(g)+1
-              num_o2h(g)=h
-              o2h(g,h)=i
-              o2which(g,h)=j
-              strength_o2h(g,h)=aux1
-           END IF
-
+        DO jj=1,num_h2o(i,j)
+           g=h2o(i,j,jj)
+           h=num_o2h(g)+1
+           num_o2h(g)=h
+           o2h(g,h)=i
+           o2which(g,h)=j
+           strength_o2h(g,h)=strength_h2o(i,j,jj)
         END DO
-        !ordeno lo que sale de los hidrogenos
-        IF (gg>1) THEN
+     END DO
+  END DO
+
+END SUBROUTINE HBONDS_COMPLETE_OXYGENS
+
+SUBROUTINE SORTING_HBONDS()
+
+  IMPLICIT NONE
+  INTEGER::i,j,jj,g,h
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
+  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::back3
+
+  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+
+  filtro=.false.
+
+  DO i=1,NW
+     ! Hydrogens
+     DO j=1,2
+        g=num_h2o(i,j)
+        IF (g>1) THEN
            back1=h2o(i,j,:)
            back3=strength_h2o(i,j,:)
-           filtro=.false.
-           filtro(1:gg)=.true.
-           DO jj=1,gg
+           filtro(1:g)=.true.
+           DO jj=1,g
               h=MAXLOC(back3(:),DIM=1,MASK=filtro)
               h2o(i,j,jj)=back1(h)
               strength_h2o(i,j,jj)=back3(h)
               filtro(h)=.false.
            END DO
         END IF
-
      END DO
-  END DO
-
-
-  !ordeno lo que sale de los oxigenos
-  DO i=1,NW
-     IF (num_o2h(i)>1) THEN
-        gg=num_o2h(i)
+     !Oxygens
+     g=num_o2h(i)
+     IF (g>1) THEN
         back1=o2h(i,:)
         back2=o2which(i,:)
         back3=strength_o2h(i,:)
-        filtro=.false.
-        filtro(1:gg)=.true.
-        DO jj=1,gg
+        filtro(1:g)=.true.
+        DO jj=1,g
            h=MAXLOC(back3(:),DIM=1,MASK=filtro)
            o2h(i,jj)=back1(h)
            o2which(i,jj)=back2(h)
@@ -541,36 +427,73 @@ SUBROUTINE HBONDS_SKINNER_INTERNAL()
 
   DEALLOCATE(filtro,back1,back2,back3)
 
-END SUBROUTINE HBONDS_SKINNER_INTERNAL
+END SUBROUTINE SORTING_HBONDS
 
 
-SUBROUTINE SKINNER_PARAMETER_INTERNAL (molh,hi,vecino,molo,Nval)
 
-  IMPLICIT NONE
 
-  INTEGER::i
-  INTEGER,INTENT(IN)::molh,hi,vecino,molo
-  REAL,INTENT(OUT)::Nval
-  REAL::aux
+!!!
+!!! MICROSTATES OF A BOX OF WATER
+!!!
 
-  aux=dot_product(wat_perp(molo,:),vect_norm_htoo(molh,hi,vecino,:))
-  if (aux>=1.0d0) aux=1.0d0
-  if (aux<=-1.0d0) aux=-1.0d0
-  aux=acos(aux)
-  aux=aux*(90/pi)
-  IF (aux>90) THEN
-     print*,'aquiii error 3.14',aux
-     STOP
-  END IF
-  IF (aux<0) THEN
-     print*,'aquiii error 3.14',aux
-     STOP
-  END IF
+SUBROUTINE MICROSTATES (num_wat,mss)
 
-  !! darr is in 10^{-10} m
-  Nval=exp(-darr(molh,hi,vecino)/0.3430d0)*(7.10d0-0.050d0*aux+0.000210d0*aux**2)
+!  IMPLICIT NONE 
 
-END SUBROUTINE SKINNER_PARAMETER_INTERNAL
+  INTEGER,INTENT(IN)::num_wat
+  INTEGER,DIMENSION(num_wat,17),INTENT(OUT)::mss
+  INTEGER::j
+  
+  CALL INITIALIZE_HBONDS_MEMORY()
+  CALL INITIALIZE_MSS_MEMORY()
+
+  CALL HBONDS_BOX()
+
+  CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
+  DO j=1,NW      
+     CALL STATE_SHORT_NOSIMETRIC(j)   
+     CALL REMOVE_PERMUT_SHORT_NOSIMETRIC(j)
+     mss(j,:)=ms_short2(:)
+  END DO
+
+  CALL FREE_HBONDS_MEMORY()
+  CALL FREE_MSS_MEMORY()
+
+END SUBROUTINE MICROSTATES
+
+
+SUBROUTINE MICROSTATES_IND_WAT (num_wat,mss)
+
+!  IMPLICIT NONE 
+
+  INTEGER,INTENT(IN)::num_wat
+  INTEGER,DIMENSION(num_wat,17),INTENT(OUT)::mss
+  INTEGER::j
+  
+  CALL INITIALIZE_HBONDS_MEMORY()
+  CALL INITIALIZE_MSS_MEMORY()
+
+  CALL HBONDS_BOX()
+
+  CALL BUILD_HBONDS_LIMIT_NOSIMETRIC ()
+  DO j=1,NW      
+     CALL STATE_SHORT_NOSIMETRIC(j)   
+     CALL REMOVE_PERMUT_SHORT_NOSIMETRIC(j)
+     mss(j,:)=mss_ind_wat(:)-1
+  END DO
+
+  CALL FREE_HBONDS_MEMORY()
+  CALL FREE_MSS_MEMORY()
+
+END SUBROUTINE MICROSTATES_IND_WAT
+
+
+!##################################################################################
+!##################################################################################
+
+!!!
+!!! AUXILIARY FUNCTIONS FOR MICROSTATES
+!!!
 
 
 SUBROUTINE BUILD_HBONDS_LIMIT_NOSIMETRIC ()
@@ -591,8 +514,6 @@ SUBROUTINE BUILD_HBONDS_LIMIT_NOSIMETRIC ()
         hbsmol(i,j+4)=o2which(i,j)
      END DO
   END DO
-
-
 
 END SUBROUTINE BUILD_HBONDS_LIMIT_NOSIMETRIC
 
@@ -1106,81 +1027,107 @@ SUBROUTINE DOY_VUELTA_KEY (key,key_aux)
 
 END SUBROUTINE DOY_VUELTA_KEY
 
+!##################################################################################
+!##################################################################################
 
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! SKINNER HBONDS
 
-SUBROUTINE ALL_NORM_WATER()
+
+SUBROUTINE HBONDS_SKINNER()
 
   IMPLICIT NONE
-  INTEGER::i
-  REAL,DIMENSION(3)::norm
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::sk_val,aux_cos,aux_dist
 
   DO i=1,NW
-     CALL PERPENDICULAR_WATER(i,norm)
-     wat_perp(i,:)=norm
+     DO j=1,2
+        gg=0
+        DO jj=1,nparts
+           g=iarr(i,j,jj)
+           aux_cos=dot_product(wat_perp(g,:),vect_norm_htoo(i,j,jj,:))
+           aux_dist=darr(i,j,jj)
+           CALL SKINNER_PARAMETER_DEFINITION (aux_cos,aux_dist,sk_val)
+           IF (sk_val>sk_param) THEN
+              gg=gg+1
+              num_h2o(i,j)=gg
+              h2o(i,j,gg)=g
+              strength_h2o(i,j,gg)=sk_val     ! Tomaré N como criterio para eliminar hbonds
+           END IF
+        END DO
+     END DO
   END DO
 
-END SUBROUTINE ALL_NORM_WATER
+END SUBROUTINE HBONDS_SKINNER
 
-
-
-SUBROUTINE PBC(vector)
-
-  implicit none
-  integer::i
-  real,dimension(3),intent(INOUT)::vector
-  
-  DO i=1,3
-     IF (abs(vector(i))>Lbox2) THEN
-        IF (vector(i)>Lbox2) THEN
-           vector(i)=vector(i)-Lbox
-        ELSE
-           vector(i)=vector(i)+Lbox
-        END IF
-     END IF
-  END DO
-  
-END SUBROUTINE PBC
-
-SUBROUTINE PERPENDICULAR_WATER (a,vect)
+SUBROUTINE SKINNER_PARAMETER_DEFINITION (aux_cos,aux_dist,sk_val)
 
   IMPLICIT NONE
 
-  INTEGER,INTENT(IN)::a
-  REAL,DIMENSION(3),INTENT(OUT)::vect
-  REAL,DIMENSION(3)::posh1,posh2
+  DOUBLE PRECISION,INTENT(INOUT)::aux_cos,aux_dist
+  DOUBLE PRECISION,INTENT(OUT)::sk_val
 
-  vect=0.0d0
+  if (aux_cos>=1.0d0) aux_cos=1.0d0
+  if (aux_cos<=-1.0d0) aux_cos=-1.0d0
+  aux_cos=acos(aux_cos)
+  aux_cos=aux_cos*(90/pi)
+  IF (aux_cos>90) THEN
+     print*,'aquiii error 3.14',aux_cos
+     STOP
+  END IF
+  IF (aux_cos<0) THEN
+     print*,'aquiii error 3.14',aux_cos
+     STOP
+  END IF
 
-  posh1=xarr(a,1,:)-xarr(a,2,:)
-  posh2=xarr(a,1,:)-xarr(a,3,:)
+  !! darr is in 10^{-10} m
+  sk_val=exp(-aux_dist/0.3430d0)*(7.10d0-0.050d0*aux_cos+0.000210d0*aux_cos**2)
 
-  CALL PRODUCT_VECT(posh1,posh2,vect)
-  CALL NORMALIZE_VECT (vect)
+END SUBROUTINE SKINNER_PARAMETER_DEFINITION
 
-END SUBROUTINE PERPENDICULAR_WATER
 
-SUBROUTINE PRODUCT_VECT(a,b,normal)
+SUBROUTINE SKINNER_PARAMETER (index_wat_o,index_wat_h,index_h,sk_val)
 
-  REAL,DIMENSION(3),INTENT(IN)::a,b
-  REAL,DIMENSION(3),INTENT(OUT)::normal
-  REAL::norm
-  
-  normal(1)=a(2)*b(3)-a(3)*b(2)
-  normal(2)=-a(1)*b(3)+a(3)*b(1)
-  normal(3)=a(1)*b(2)-a(2)*b(1)
+  INTEGER,INTENT(IN)::index_wat_o,index_wat_h,index_h
+  DOUBLE PRECISION,    ALLOCATABLE, DIMENSION(:) :: norm_htoo    !! (index_water,Hi,num_neights)
+  DOUBLE PRECISION,    ALLOCATABLE, DIMENSION(:) :: perp,aux_vect
+  DOUBLE PRECISION::aux_dist,aux_cos
+  DOUBLE PRECISION,INTENT(OUT)::sk_val
 
-END SUBROUTINE PRODUCT_VECT
+  Lbox2=Lbox/2.0d0
 
-SUBROUTINE NORMALIZE_VECT (a)
+  ALLOCATE(norm_htoo(3),aux_vect(3))
+  ALLOCATE(perp(3))
 
-  REAL,DIMENSION(3),INTENT(INOUT)::a
-  REAL::norm
+  norm_htoo=0.0d0
+  perp=0.0d0
+  aux_vect=0.0d0
+  aux_dist=0.0d0
+  aux_cos=0.0d0
+  sk_val=0.0d0
 
-  norm=sqrt(dot_product(a,a))
-  a=a/norm
+  aux_vect=XARR(index_wat_o+1,1,:)-XARR(index_wat_h+1,index_h+1,:)
 
-END SUBROUTINE NORMALIZE_VECT
+  CALL PBC (aux_vect)
+  aux_dist=sqrt(dot_product(aux_vect,aux_vect))
+  norm_htoo=aux_vect/aux_dist
+
+  CALL PERPENDICULAR_WATER(index_wat_o+1,perp)
+
+  aux_cos=dot_product(perp(:),norm_htoo(:))
+
+  CALL SKINNER_PARAMETER_DEFINITION (aux_cos,aux_dist,sk_val)
+
+  DEALLOCATE(norm_htoo,perp,aux_vect)
+
+END SUBROUTINE skinner_parameter
+
+
+
+
+
 
 
 

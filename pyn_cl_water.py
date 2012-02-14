@@ -11,12 +11,33 @@ import pickle as pic
 #####################################################################################
 
 
+def hbonds_type(option=None,verbose=True):
 
-def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0.00850,optimize=False):
+    hbs_type={}
+    hbs_type['Skinner']=1
+    hbs_type['R(o,h)']=2
+    hbs_type['R(o,o)-Ang(o,o,h)']=3
 
-    # Set up parameters as the Skinner Parameter:
+    if verbose:
+        print 'Options:',hbs_type.keys()
 
-    f_water.wat.sk_param=sk_param
+
+    if option != None :
+        if option not in hbs_type.keys():
+            print 'Hbond type not defined:'
+            print 'Options:',hbs_type.keys()
+            return 0
+        return hbs_type[option]
+
+def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0.00850,optimize=False,verbose=False):
+
+
+
+    # Setting up the hbond definition:
+
+    f_water.wat.hb_def=hbonds_type(definition,verbose=False)
+    if f_water.wat.hb_def == 0 : return
+    if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
 
     # Reset of previous hbonds
 
@@ -28,109 +49,118 @@ def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0
         ii.H1.hbonds=[]
         ii.H2.hbonds=[]
 
-    # Skinner
+    # Frame to be analysed:
 
-    if definition=='Skinner':
+    if system2==None and optimize==False:
+        if frame==None:
+            frame=system1.last_frame
 
-        if system2==None and optimize==False:
-            if frame==None:
-                frame=system1.last_frame
+    # Setting up the fortran variables:
 
+    if not optimize :
         f_water.wat.switch=0     # Optimization for hbonds=False 
-            
-        f_water.wat.xarr=zeros(shape=(system1.num_waters,3,3),order='Fortran')
-        f_water.wat.iarr=zeros(shape=(system1.num_waters,2,f_water.wat.nparts),order='Fortran')
-        f_water.wat.darr=zeros(shape=(system1.num_waters,2,f_water.wat.nparts),order='Fortran')
 
-        for jj in range(system1.num_waters):
-            f_water.wat.xarr[jj,0,:]=system1.frame[0].coors[system1.water[jj].O.index,:]
-            f_water.wat.xarr[jj,1,:]=system1.frame[0].coors[system1.water[jj].H1.index,:]
-            f_water.wat.xarr[jj,2,:]=system1.frame[0].coors[system1.water[jj].H2.index,:]
+    f_water.wat.nw=system1.num_waters
+    f_water.wat.initialize_coors_memory()
 
-        f_water.wat.hbonds_skinner(system1.num_waters,system1.frame[0].box[0,0])
+    __coors2fortran(system1,frame=0)
 
-        # hbonds already in fortran variables... :
-        ## f_water.wat.num_o2h[i]                 number of hbonds of the atom O of water i
-        ## f_water.wat.o2h[i,dim=6]               list of water index bonded to water i because of the O
-        ## f_water.wat.o2which[i,dim=6]           index of hydrogen -1 or 2- corresponding to f_water.wat.o2h
-        ## f_water.wat.strength_o2h[i,dim=6]      skinner parameter corresponding to f_water.wat.o2h
-        ## f_water.wat.num_h2i[i,j-1]             number of hbonds of the atom Hj of water i
-        ## f_water.wat.h2o[i,j-1,dim=6]           list of water index bonded to water i because of the atom Hj
-        ## f_water.wat.strength_h2o[i,j-1,dim=6]  skinner parameter corresponding to f_water.wat.h2o
+    f_water.wat.initialize_hbonds_memory()
 
-        # Reformatting data:
-        list_hbonds={}
-        for ii in range(system1.num_waters):
-            index_water_o=ii
-            index_o=system1.water[ii].O.index
-            for jj in range(f_water.wat.num_o2h[ii]):
-                index_water_h=f_water.wat.o2h[ii,jj]-1
-                if f_water.wat.o2which[ii,jj]==1:
-                    index_h=system1.water[index_water_h].H1.index
-                    aux_link_h=system1.water[index_water_h].H1.hbonds
-                else:
-                    index_h=system1.water[index_water_h].H2.index
-                    aux_link_h=system1.water[index_water_h].H2.hbonds
-                list_hbonds[str(index_o)+'-'+str(index_h)]=f_water.wat.strength_o2h[ii,jj]
-                system1.water[index_water_o].O.hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
-                system1.atom[index_o].hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
-                aux_link_h.append([index_o,f_water.wat.strength_o2h[ii,jj]])
-                system1.atom[index_h].hbonds.append([index_o,f_water.wat.strength_o2h[ii,jj]])
+    # Analysis
 
-        # Free memory:
-        f_water.wat.free_hbonds()
+    f_water.wat.hbonds_box()
 
+    # hbonds already in fortran variables... :
+    ## f_water.wat.num_o2h[i]                 number of hbonds of the atom O of water i
+    ## f_water.wat.o2h[i,dim=6]               list of water index bonded to water i because of the O
+    ## f_water.wat.o2which[i,dim=6]           index of hydrogen -1 or 2- corresponding to f_water.wat.o2h
+    ## f_water.wat.strength_o2h[i,dim=6]      skinner parameter corresponding to f_water.wat.o2h
+    ## f_water.wat.num_h2i[i,j-1]             number of hbonds of the atom Hj of water i
+    ## f_water.wat.h2o[i,j-1,dim=6]           list of water index bonded to water i because of the atom Hj
+    ## f_water.wat.strength_h2o[i,j-1,dim=6]  skinner parameter corresponding to f_water.wat.h2o
+
+    # Reformatting data:
+    list_hbonds={}
+    for ii in range(system1.num_waters):
+        index_water_o=ii
+        index_o=system1.water[ii].O.index
+        for jj in range(f_water.wat.num_o2h[ii]):
+            index_water_h=f_water.wat.o2h[ii,jj]-1
+            if f_water.wat.o2which[ii,jj]==1:
+                index_h=system1.water[index_water_h].H1.index
+                aux_link_h=system1.water[index_water_h].H1.hbonds
+            else:
+                index_h=system1.water[index_water_h].H2.index
+                aux_link_h=system1.water[index_water_h].H2.hbonds
+            list_hbonds[str(index_o)+'-'+str(index_h)]=f_water.wat.strength_o2h[ii,jj]
+            system1.water[index_water_o].O.hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
+            system1.atom[index_o].hbonds.append([index_h,f_water.wat.strength_o2h[ii,jj]])
+            aux_link_h.append([index_o,f_water.wat.strength_o2h[ii,jj]])
+            system1.atom[index_h].hbonds.append([index_o,f_water.wat.strength_o2h[ii,jj]])
+
+    # Free memory:
+    f_water.wat.free_coors_memory()
+    f_water.wat.free_hbonds_memory()
+
+
+    if verbose :
         return list_hbonds   # dict: 'index_O'-'indexH'=Skinner_parameter
+    else:
+        return
 
 def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None,frame=None):
+
 
     if frame==None:
         frame=system.last_frame
 
-    f_water.wat.switch=0     # Optimization for hbonds=False 
-            
-    f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
-    f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
-    f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+    f_water.wat.nw=system.num_waters
+    f_water.wat.initialize_coors_memory()
 
-    for jj in range(system.num_waters):
-        f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-        f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-        f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+    __coors2fortran(system,frame=0)
 
-    sk=f_water.wat.skinner_parameter(index_wat_o,index_wat_h,index_h,system.frame[0].box[0,0])
 
-    return sk   # dict: 'index_O'-'indexH'=Skinner_parameter
+    sk=f_water.wat.skinner_parameter(index_wat_o,index_wat_h,index_h)
+
+    f_water.wat.free_coors_memory()
+
+    return sk 
 
 
 
-def mss_water (system=None,ind_waters=False,definition='Skinner',sk_param=0.00850):
-    
-     # Set up parameters as the Skinner Parameter:
-
-    f_water.wat.sk_param=sk_param
+def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00850):
 
     if system==None:
         print 'Error: input variables needed'
         print 'mss_water(system=None)'
         return None
 
-        ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
+    # Setting up the hbond definition:
+
+    f_water.wat.hb_def=hbonds_type(definition,verbose=False)
+    if f_water.wat.hb_def == 0 : return
+    if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
+
+    # Initialize Fortran objects:
+
+    f_water.wat.nw=system.num_waters
+    f_water.wat.initialize_coors_memory()
+
+    # Data in Fortran for the frame:
+
     f_water.wat.switch=0          ## Optimization for hbonds=False in first frame
-    f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
-    f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
-    f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+    __coors2fortran(system,frame=0)
 
+    # Analysis:
 
-    for jj in range(system.num_waters):
-        f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-        f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-        f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
-
-    if ind_waters==False:
-        mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
-    elif ind_waters==True:
-        mss=f_water.wat.microstates_ind_wat(system.num_waters,system.frame[0].box[0,0])
+    if index_waters :
+        mss=f_water.wat.microstates_ind_wat(system.num_waters)
+    else :
+        mss=f_water.wat.microstates(system.num_waters)
+    
+    # Deallocating Fortran Memory:
+    f_water.wat.free_coors_memory()
 
     return mss
         
@@ -148,17 +178,23 @@ class kinetic_network(cl_net):
             print 'kinetic_network(system=None,file_traj=None,begin=None,end=None)'
             return None
 
-        
-        # Set up parameters as the Skinner Parameter:
-        
-        f_water.wat.sk_param=sk_param
+        # Setting up the hbond definition:
 
-        ####### INITIALIZE FORTRAN OBJECTS NEEDED#####
+        f_water.wat.hb_def=hbonds_type(definition,verbose=False)
+        if f_water.wat.hb_def == 0 : return
+        if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
+
+        # Frame to be analysed:
+
         system.last_frame=begin
-        f_water.wat.switch=0          ## Optimization for hbonds=False in first frame
-        f_water.wat.xarr=zeros(shape=(system.num_waters,3,3),order='Fortran')
-        f_water.wat.iarr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
-        f_water.wat.darr=zeros(shape=(system.num_waters,2,f_water.wat.nparts),order='Fortran')
+
+        # Setting up the fortran variables:
+
+        f_water.wat.switch=0     # Optimization for hbonds=False for the first frame
+
+        f_water.wat.nw=system.num_waters
+        f_water.wat.initialize_coors_memory()
+
 
         ####### INITIALIZE NET#####
         nodes_ant=[0 for ii in range(system.num_waters)]
@@ -167,21 +203,20 @@ class kinetic_network(cl_net):
         num_nodes=-1
         ####### INITIALIZE NET#####
 
-
-
         ###################################### first frame
         system.delete_coors()
         system.load_coors(file_traj)
 
+        f_water.wat.lbox[:,:]=system.frame[0].box[:,:]
+        
         for jj in range(system.num_waters):
             f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
             f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
             f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
 
-        mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
-        
 
-
+        mss=f_water.wat.microstates(system.num_waters)
+  
         ###### NET: 1ST FRAME NODES ########
         for jj in range(system.num_waters):
             aa=str(mss[jj])
@@ -202,13 +237,14 @@ class kinetic_network(cl_net):
 
             system.load_coors(file_traj)
 
+            f_water.wat.lbox[:,:]=system.frame[0].box[:,:]
+            
             for jj in range(system.num_waters):
                 f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
                 f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
                 f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
-            
-            mss=f_water.wat.microstates(system.num_waters,system.frame[0].box[0,0])
 
+            mss=f_water.wat.microstates(system.num_waters)
 
             ###### NET: FRAME NODES ########
             for jj in range(system.num_waters):
@@ -243,6 +279,8 @@ class kinetic_network(cl_net):
             
         ################################################# END
 
+        f_water.wat.free_coors_memory()
+
         self.keys_inv=dict((v,k) for k, v in self.keys.iteritems())
         self.num_nodes=len(self.keys)
         for ii in range(self.num_nodes):
@@ -253,25 +291,7 @@ class kinetic_network(cl_net):
         self.k_max=max(self.k_out_node)
         self.weight_total=sum(self.weight_node)
 
-        self.T_ind=zeros(shape=(self.k_total),dtype=int,order='Fortran')
-        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
-        self.T_weight=zeros(shape=(self.k_total),dtype=int,order='Fortran')
-
-        kk=0
-        for ii in range(self.num_nodes):
-            self.T_start[ii]=kk
-            aux_links=self.links[ii].keys()
-            if ii in aux_links:
-                self.T_ind[kk]=ii+1
-                self.T_weight[kk]=self.links[ii][ii]
-                aux_links.remove(ii)
-                kk+=1
-            for jj in aux_links:
-                self.T_ind[kk]=jj+1
-                self.T_weight[kk]=self.links[ii][jj]
-                kk+=1
-        self.T_start[self.num_nodes]=kk
-        self.Ts=True
+        self.build_Ts()
 
         if verbose:
             self.info()
@@ -279,15 +299,20 @@ class kinetic_network(cl_net):
         return 
         
 
-'''
-    ## Provisional auxiliary functions
-    def reformatting(self):
+### Private methods for the code:
+
+def __coors2fortran(system,frame=None):
+
+    f_water.wat.lbox[:,:]=system.frame[frame].box[:,:]
+
+    for jj in range(system.num_waters):
+        f_water.wat.xarr[jj,0,:]=system.frame[frame].coors[system.water[jj].O.index,:]
+        f_water.wat.xarr[jj,1,:]=system.frame[frame].coors[system.water[jj].H1.index,:]
+        f_water.wat.xarr[jj,2,:]=system.frame[frame].coors[system.water[jj].H2.index,:]
+
+    return
     
-        for jj in range(system.num_waters):
-            f_water.wat.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-            f_water.wat.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-            f_water.wat.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
-'''
+
 
             
 
