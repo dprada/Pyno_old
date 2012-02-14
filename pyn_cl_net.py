@@ -318,8 +318,6 @@ def merge_nets(net1=None,net2=None,verbose=True):
             except:
                 net_total.links[aaa][iii]=jj
 
-    net_total.build_Ts()
-
     for ii in range(net_total.num_nodes):
        net_total.k_out_node.append(len(net_total.links[ii]))
        net_total.weight_node.append(sum(net_total.links[ii].values()))
@@ -327,6 +325,8 @@ def merge_nets(net1=None,net2=None,verbose=True):
        net_total.k_total=net_total.num_links
        net_total.k_max=max(net_total.k_out_node)
        net_total.weight_total=sum(net_total.weight_node)
+
+    net_total.build_Ts()
 
     if verbose:
         net_total.info()
