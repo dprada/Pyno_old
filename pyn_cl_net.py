@@ -108,6 +108,28 @@ class cl_net():
         self.weight_total=sum(self.weight_node)
         self.Ts=True
         
+    def build_Ts(self):
+
+        self.T_ind=zeros(shape=(self.k_total),dtype=int,order='Fortran')
+        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
+        self.T_weight=zeros(shape=(self.k_total),dtype=int,order='Fortran')
+
+        kk=0
+        for ii in range(self.num_nodes):
+            self.T_start[ii]=kk
+            aux_links=self.links[ii].keys()
+            if ii in aux_links:
+                self.T_ind[kk]=ii+1
+                self.T_weight[kk]=self.links[ii][ii]
+                aux_links.remove(ii)
+                kk+=1
+            for jj in aux_links:
+                self.T_ind[kk]=jj+1
+                self.T_weight[kk]=self.links[ii][jj]
+                kk+=1
+        self.T_start[self.num_nodes]=kk
+        self.Ts=True
+
 
     def read_keys(self,name_file):
 
@@ -155,12 +177,7 @@ class cl_net():
 
         if self.Ts==False :
 
-            self.Ts=True
-            self.T_ind=zeros(shape=(self.k_total),dtype=int)
-            self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
-            self.T_weight=zeros(shape=(self.k_total),dtype=int)
-
-            print 'We have to compute the Ts'
+            self.build_Ts()
             
 
         pfff=f_net.funcs.symmetrize_net(temp.k_total,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
@@ -193,12 +210,8 @@ class cl_net():
 
         if self.Ts==False :
 
-            self.Ts=True
-            self.T_ind=zeros(shape=(self.k_total),dtype=int)
-            self.T_start=zeros(shape=(self.num_nodes+1),dtype=int)
-            self.T_weight=zeros(shape=(self.k_total),dtype=int)
+            self.build_Ts()
 
-            print 'We have to compute the Ts'
             
 
         self.num_clusters,self.node_belongs2=f_net.funcs.grad(self.weight_node,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
@@ -304,6 +317,8 @@ def merge_nets(net1=None,net2=None,verbose=True):
                 net_total.links[aaa][iii]+=jj
             except:
                 net_total.links[aaa][iii]=jj
+
+    net_total.build_Ts()
 
     for ii in range(net_total.num_nodes):
        net_total.k_out_node.append(len(net_total.links[ii]))
