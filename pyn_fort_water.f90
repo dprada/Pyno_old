@@ -4,7 +4,9 @@ INTEGER::switch
 INTEGER::nw,natw
 INTEGER::nparts,nparts2
 INTEGER::hb_def
-DOUBLE PRECISION::sk_param
+
+DOUBLE PRECISION::sk_param,roh_param,roo_param,cos_angooh_param
+
 
 DOUBLE PRECISION, DIMENSION(:,:),ALLOCATABLE :: Lbox,Lbox2
 
@@ -350,7 +352,15 @@ SUBROUTINE hbonds_box ()
      CALL ALL_NORM_WATER ()
      CALL HBONDS_SKINNER()
      CALL HBONDS_COMPLETE_OXYGENS()
-     CALL SORTING_HBONDS()
+     CALL SORTING_HBONDS_MAXLOC()
+  CASE (2)
+     CALL HBONDS_DIST_OH ()
+     CALL HBONDS_COMPLETE_OXYGENS()
+     CALL SORTING_HBONDS_MINLOC()
+  CASE (3)
+     CALL HBONDS_DIST_OO_ANG_OOH ()
+     CALL HBONDS_COMPLETE_OXYGENS()
+     CALL SORTING_HBONDS_MINLOC()
   CASE DEFAULT
      PRINT*, 'Error: Hbond definition unknown'
   END SELECT
@@ -379,7 +389,7 @@ SUBROUTINE HBONDS_COMPLETE_OXYGENS()
 
 END SUBROUTINE HBONDS_COMPLETE_OXYGENS
 
-SUBROUTINE SORTING_HBONDS()
+SUBROUTINE SORTING_HBONDS_MAXLOC()
 
   IMPLICIT NONE
   INTEGER::i,j,jj,g,h
@@ -427,8 +437,57 @@ SUBROUTINE SORTING_HBONDS()
 
   DEALLOCATE(filtro,back1,back2,back3)
 
-END SUBROUTINE SORTING_HBONDS
+END SUBROUTINE SORTING_HBONDS_MAXLOC
 
+SUBROUTINE SORTING_HBONDS_MINLOC()
+
+  IMPLICIT NONE
+  INTEGER::i,j,jj,g,h
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
+  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::back3
+
+  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+
+  filtro=.false.
+
+  DO i=1,NW
+     ! Hydrogens
+     DO j=1,2
+        g=num_h2o(i,j)
+        IF (g>1) THEN
+           back1=h2o(i,j,:)
+           back3=strength_h2o(i,j,:)
+           filtro(1:g)=.true.
+           DO jj=1,g
+              h=MINLOC(back3(:),DIM=1,MASK=filtro)
+              h2o(i,j,jj)=back1(h)
+              strength_h2o(i,j,jj)=back3(h)
+              filtro(h)=.false.
+           END DO
+        END IF
+     END DO
+     !Oxygens
+     g=num_o2h(i)
+     IF (g>1) THEN
+        back1=o2h(i,:)
+        back2=o2which(i,:)
+        back3=strength_o2h(i,:)
+        filtro(1:g)=.true.
+        DO jj=1,g
+           h=MINLOC(back3(:),DIM=1,MASK=filtro)
+           o2h(i,jj)=back1(h)
+           o2which(i,jj)=back2(h)
+           strength_o2h(i,jj)=back3(h)
+           filtro(h)=.false.
+        END DO
+     END IF
+
+  END DO
+
+  DEALLOCATE(filtro,back1,back2,back3)
+
+END SUBROUTINE SORTING_HBONDS_MINLOC
 
 
 
@@ -1034,6 +1093,8 @@ END SUBROUTINE DOY_VUELTA_KEY
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! SKINNER HBONDS
+!!!!
+!!!! Source: R. Kumar, J. R. Schmidt and J. L. Skinner. J. Chem. Phys. 126, 204107 (2007)
 
 
 SUBROUTINE HBONDS_SKINNER()
@@ -1125,6 +1186,109 @@ SUBROUTINE SKINNER_PARAMETER (index_wat_o,index_wat_h,index_h,sk_val)
 END SUBROUTINE skinner_parameter
 
 
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Distance OH; R(o,h)
+!!!!
+!!!! Source: V. J. Buch. J. Chem. Phys. 96, 3814-3823 (1992)
+
+
+SUBROUTINE HBONDS_DIST_OH()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::roh_val,aux_cos,aux_dist
+
+  DO i=1,NW
+     DO j=1,2
+        gg=0
+        DO jj=1,nparts
+           g=iarr(i,j,jj)
+           roh_val=darr(i,j,jj)
+           IF (roh_val<roh_param) THEN
+              gg=gg+1
+              num_h2o(i,j)=gg
+              h2o(i,j,gg)=g
+              strength_h2o(i,j,gg)=roh_val     ! Tomaré N como criterio para eliminar hbonds
+           END IF
+        END DO
+     END DO
+  END DO
+
+END SUBROUTINE HBONDS_DIST_OH
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Distance OO and Angle OOH; R(o,o)-Ang(o,o,h)
+!!!!
+!!!! Source: A. Luzar, D. Chandler. Phys. Rev. Lett. 76, 928-931 (1996)
+
+
+SUBROUTINE HBONDS_DIST_OO_ANG_OOH()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::angooh,aux_val,aux_cos
+
+  DOUBLE PRECISION,DIMENSION(3)::aux,aux2
+  LOGICAL,DIMENSION(:,:),ALLOCATABLE::filter
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::roo_val
+  DOUBLE PRECISION,DIMENSION(:,:,:),ALLOCATABLE::roo_vect_norm
+
+  ALLOCATE(filter(NW,NW),roo_val(NW,NW),roo_vect_norm(NW,NW,3))
+  filter=.false.
+  
+
+  DO i=1,NW
+     aux=XARR(i,1,:)
+     DO j=1,2
+        DO jj=1,nparts
+           g=iarr(i,j,jj)
+           IF (filter(i,g)==.false.) THEN
+              filter(i,g)=.true.
+              filter(g,i)=.true.
+              aux2=XARR(g,1,:)-aux
+              CALL PBC (aux2)
+              aux_val=sqrt(dot_product(aux2,aux2))
+              aux2=aux2/aux_val
+              roo_val(i,g)=aux_val
+              roo_val(g,i)=aux_val
+              roo_vect_norm(i,g,:)=aux2
+              roo_vect_norm(g,i,:)=-aux2
+           END IF
+        END DO
+     END DO
+  END DO
+
+  DO i=1,NW
+     aux=XARR(i,1,:)
+     DO j=1,2
+        gg=0
+        aux2=XARR(i,j+1,:)-aux
+        CALL PBC (aux2)
+        aux_val=sqrt(dot_product(aux2,aux2))
+        aux2=aux2/aux_val
+        DO jj=1,nparts
+           g=iarr(i,j,jj)
+           IF (roo_val(i,g)<roo_param) THEN
+              aux_cos=dot_product(aux2,roo_vect_norm(i,g,:))
+              IF (aux_cos>cos_angooh_param) THEN
+                 gg=gg+1
+                 num_h2o(i,j)=gg
+                 h2o(i,j,gg)=g
+                 strength_h2o(i,j,gg)=roo_val(i,g)     ! Tomaré N como criterio para eliminar hbonds
+                 !strength_h2o(i,j,gg)=acos(aux_cos)
+              END IF
+           END IF
+        END DO
+     END DO
+  END DO
+
+  DEALLOCATE(filter,roo_val,roo_vect_norm)
+
+END SUBROUTINE HBONDS_DIST_OO_ANG_OOH
 
 
 

@@ -14,30 +14,35 @@ import pickle as pic
 def hbonds_type(option=None,verbose=True):
 
     hbs_type={}
-    hbs_type['Skinner']=1
-    hbs_type['R(o,h)']=2
-    hbs_type['R(o,o)-Ang(o,o,h)']=3
+    hbs_info={}
+    hbs_type['Skinner']=1; hbs_info['Skinner']='R.Kumar, J.R. Schmidt and J.L. Skinner. J. Chem. Phys. 126, 204107 (2007)' 
+    hbs_type['R(o,h)']=2;  hbs_info['R(o,h)']='V. J. Buch. J. Chem. Phys. 96, 3814-3823 (1992)'
+    hbs_type['R(o,o)-Ang(o,o,h)']=3; hbs_info['R(o,o)-Ang(o,o,h)']='A. Luzar, D. Chandler. Phys. Rev. Lett. 76, 928-931 (1996)'
 
     if verbose:
-        print 'Options:',hbs_type.keys()
-
+        if option not in hbs_type.keys():
+            for ii in hbs_type.keys():
+                print '  ',ii,' [', hbs_info[ii],']'
+        return
 
     if option != None :
         if option not in hbs_type.keys():
-            print 'Hbond type not defined:'
-            print 'Options:',hbs_type.keys()
+            print option, ': Hbond type not defined.'
+            print 'List of definitions:'
+            for ii in hbs_type.keys():
+                print '  ',ii,' [', hbs_info[ii],']'
             return 0
         return hbs_type[option]
 
-def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0.00850,optimize=False,verbose=False):
-
-
+def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,optimize=False,verbose=False):
 
     # Setting up the hbond definition:
 
     f_water.wat.hb_def=hbonds_type(definition,verbose=False)
     if f_water.wat.hb_def == 0 : return
     if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
+    if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
+    if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
 
     # Reset of previous hbonds
 
@@ -129,7 +134,7 @@ def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None
 
 
 
-def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00850):
+def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0):
 
     if system==None:
         print 'Error: input variables needed'
@@ -141,6 +146,8 @@ def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00
     f_water.wat.hb_def=hbonds_type(definition,verbose=False)
     if f_water.wat.hb_def == 0 : return
     if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
+    if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
+    if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
 
     # Initialize Fortran objects:
 
@@ -168,7 +175,7 @@ def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00
 
 class kinetic_network(cl_net):
     
-    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,verbose=True):
+    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True):
 
         self.init_net()
         self.file_traj=file_traj
@@ -183,6 +190,8 @@ class kinetic_network(cl_net):
         f_water.wat.hb_def=hbonds_type(definition,verbose=False)
         if f_water.wat.hb_def == 0 : return
         if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
+        if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
+        if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
 
         # Frame to be analysed:
 
