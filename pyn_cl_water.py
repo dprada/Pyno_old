@@ -18,11 +18,20 @@ def hbonds_type(option=None,verbose=True):
     hbs_type['Skinner']=1; hbs_info['Skinner']='R.Kumar, J.R. Schmidt and J.L. Skinner. J. Chem. Phys. 126, 204107 (2007)' 
     hbs_type['R(o,h)']=2;  hbs_info['R(o,h)']='V. J. Buch. J. Chem. Phys. 96, 3814-3823 (1992)'
     hbs_type['R(o,o)-Ang(o,o,h)']=3; hbs_info['R(o,o)-Ang(o,o,h)']='A. Luzar, D. Chandler. Phys. Rev. Lett. 76, 928-931 (1996)'
+    hbs_type['Donor-Acceptor-Number']=4; hbs_info['Donor-Acceptor-Number']='A. D. Hammerich, V. J. Buch. J. Chem. Phys. 128, 111101 (2008)'
+    hbs_type['Topological']=5; hbs_info['Topological']='R. H. Henchman and S. J. Irudayam. J. Phys. Chem. B. 114, 16792-16810 (2010)'
+    hbs_type['Donor-Number-Ang(o,o,h)']=6; hbs_info['Donor-Number-Ang(o,o,h)']='J. D. Smith, C. D. Cappa, et alt. Proc. Natl. Acad. Sci. U.S.A. 102, 14171 (2005).'
+    hbs_type['Nearest-Neighbour']=7; hbs_info['Nearest-Neighbour']='This is not a hydrogen bond definition but just a topological characterization.'
+
+
 
     if verbose:
         if option not in hbs_type.keys():
             for ii in hbs_type.keys():
-                print '  ',ii,' [', hbs_info[ii],']'
+                if len(ii)<=12: tab='\t\t\t'
+                if 12<len(ii)<=18: tab='\t\t'
+                if 18<len(ii): tab='\t'
+                print '  ',ii,tab+'[',hbs_info[ii],']'
         return
 
     if option != None :
@@ -30,7 +39,10 @@ def hbonds_type(option=None,verbose=True):
             print option, ': Hbond type not defined.'
             print 'List of definitions:'
             for ii in hbs_type.keys():
-                print '  ',ii,' [', hbs_info[ii],']'
+                if len(ii)<=12: tab='\t\t\t'
+                if 12<len(ii)<=18: tab='\t\t'
+                if 18<len(ii): tab='\t'
+                print '  ',ii,tab+'[',hbs_info[ii],']'
             return 0
         return hbs_type[option]
 
@@ -43,6 +55,10 @@ def hbonds_water(definition=None,system1=None,system2=None,frame=None,sk_param=0
     if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
     if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
     if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
+    if f_water.wat.hb_def == 4 : pass
+    if f_water.wat.hb_def == 5 : pass
+    if f_water.wat.hb_def == 6 : f_water.wat.cos_angooh_param= cos(radians(angooh_param))
+    if f_water.wat.hb_def == 7 : pass
 
     # Reset of previous hbonds
 
@@ -148,6 +164,10 @@ def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00
     if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
     if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
     if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
+    if f_water.wat.hb_def == 4 : pass
+    if f_water.wat.hb_def == 5 : pass
+    if f_water.wat.hb_def == 6 : f_water.wat.cos_angooh_param= cos(radians(angooh_param))
+    if f_water.wat.hb_def == 7 : pass
 
     # Initialize Fortran objects:
 
@@ -192,6 +212,10 @@ class kinetic_network(cl_net):
         if f_water.wat.hb_def == 1 : f_water.wat.sk_param=sk_param
         if f_water.wat.hb_def == 2 : f_water.wat.roh_param= roh_param
         if f_water.wat.hb_def == 3 : f_water.wat.roo_param, f_water.wat.cos_angooh_param= roo_param, cos(radians(angooh_param))
+        if f_water.wat.hb_def == 4 : pass
+        if f_water.wat.hb_def == 5 : pass
+        if f_water.wat.hb_def == 6 : f_water.wat.cos_angooh_param= cos(radians(angooh_param))
+        if f_water.wat.hb_def == 7 : pass
 
         # Frame to be analysed:
 

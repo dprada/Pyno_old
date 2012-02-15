@@ -361,6 +361,14 @@ SUBROUTINE hbonds_box ()
      CALL HBONDS_DIST_OO_ANG_OOH ()
      CALL HBONDS_COMPLETE_OXYGENS()
      CALL SORTING_HBONDS_MINLOC()
+  CASE (4)
+     CALL HBONDS_DONOR_ACCEPTOR_NUMBER()
+  CASE (5)
+     CALL HBONDS_TOPOLOGICAL()
+  CASE (6)
+     CALL HBONDS_DONOR_ANG_OOH()
+  CASE (7)
+     CALL HBONDS_NEAREST_NEIGHBOUR()
   CASE DEFAULT
      PRINT*, 'Error: Hbond definition unknown'
   END SELECT
@@ -1290,6 +1298,313 @@ SUBROUTINE HBONDS_DIST_OO_ANG_OOH()
 
 END SUBROUTINE HBONDS_DIST_OO_ANG_OOH
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Donor-Acceptor-Number
+!!!!
+!!!! Source: A. D. Hammerich, V. J. Buch. J. Chem. Phys. 128, 111101 (2008)
+
+
+SUBROUTINE HBONDS_DONOR_ACCEPTOR_NUMBER()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::roh_val
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::neighs_oh_dist
+  INTEGER,DIMENSION(:,:,:),ALLOCATABLE::neighs_oh
+  INTEGER,DIMENSION(:),ALLOCATABLE::neighs_oh_num
+
+  ALLOCATE(neighs_oh(NW,2,2),neighs_oh_dist(NW,2),neighs_oh_num(NW))
+  neighs_oh_num=0
+
+  DO i=1,NW
+     DO j=1,2
+        g=iarr(i,j,1)
+        roh_val=darr(i,j,1)
+        h=neighs_oh_num(g)
+        IF (h<2) THEN
+           h=h+1
+           neighs_oh_num(g)=h
+           neighs_oh_dist(g,h)=roh_val
+           neighs_oh(g,h,1)=i
+           neighs_oh(g,h,2)=j
+        ELSE
+           hh=MAXLOC(neighs_oh_dist(g,:),DIM=1)
+           IF (roh_val<neighs_oh_dist(g,hh)) THEN
+              neighs_oh_dist(g,hh)=roh_val
+              neighs_oh(g,hh,1)=i
+              neighs_oh(g,hh,2)=j
+           END IF
+        END IF
+     END DO
+  END DO
+
+  DO i=1,NW
+     IF (neighs_oh_num(i)==2) THEN
+        IF (neighs_oh_dist(i,1)>neighs_oh_dist(i,2)) THEN
+           roh_val=neighs_oh_dist(i,1)
+           ii=neighs_oh(i,1,1)
+           jj=neighs_oh(i,1,2)
+           neighs_oh_dist(i,1)=neighs_oh_dist(i,2)
+           neighs_oh(i,1,:)=neighs_oh(i,2,:)
+           neighs_oh_dist(i,2)=roh_val
+           neighs_oh(i,2,1)=ii
+           neighs_oh(i,2,2)=jj
+        END IF
+     END IF
+  END DO
+
+  DO i=1,NW
+     g=neighs_oh_num(i)
+     num_o2h(i)=g
+     DO j=1,g
+        ii=neighs_oh(i,j,1)
+        jj=neighs_oh(i,j,2)
+        roh_val=neighs_oh_dist(i,j)
+        num_h2o(ii,jj)=1
+        h2o(ii,jj,1)=i
+        strength_h2o(ii,jj,1)=roh_val
+        o2h(i,j)=ii
+        o2which(i,j)=jj
+        strength_o2h(i,j)=roh_val
+     END DO
+  END DO
+
+  DEALLOCATE(neighs_oh,neighs_oh_dist,neighs_oh_num)
+
+END SUBROUTINE HBONDS_DONOR_ACCEPTOR_NUMBER
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Topological
+!!!!
+!!!! Source: R. H. Henchman and S. J. Irudayam. J. Phys. Chem. B. 114, 16792-16810 (2010)
+
+
+
+SUBROUTINE HBONDS_TOPOLOGICAL()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::roh_val
+  INTEGER,DIMENSION(2)::reord
+  LOGICAL::interr
+
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
+  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::back3
+
+
+  reord(1)=2
+  reord(2)=1
+
+
+  DO i=1,NW
+     DO j=1,2
+        g=iarr(i,j,1)
+        roh_val=darr(i,j,1)
+        interr=.true.
+        DO jj=1,nparts
+           IF (iarr(i,reord(j),jj)==g) THEN
+              IF (roh_val>darr(i,reord(j),jj)) interr=.false.
+           END IF
+        END DO
+        IF (interr==.true.) THEN
+           DO h=1,2
+              DO jj=1,nparts
+                 IF (iarr(g,h,jj)==i) THEN
+                    IF (roh_val>darr(g,h,jj)) interr=.false.
+                 END IF
+              END DO
+           END DO
+        END IF
+        IF (interr==.true.) THEN
+           num_h2o(i,j)=1
+           strength_h2o(i,j,1)=roh_val
+           h2o(i,j,1)=g
+           h=num_o2h(g)+1
+           num_o2h(g)=h
+           o2h(g,h)=i
+           o2which(g,h)=j
+           strength_o2h(g,h)=roh_val
+        END IF
+     END DO
+  END DO
+
+  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+  filtro=.false.
+
+  DO i=1,NW
+     g=num_o2h(i)
+     IF (g>1) THEN
+        back1=o2h(i,:)
+        back2=o2which(i,:)
+        back3=strength_o2h(i,:)
+        filtro(1:g)=.true.
+        DO jj=1,g
+           h=MINLOC(back3(:),DIM=1,MASK=filtro)
+           o2h(i,jj)=back1(h)
+           o2which(i,jj)=back2(h)
+           strength_o2h(i,jj)=back3(h)
+           filtro(h)=.false.
+        END DO
+     END IF
+  END DO
+
+  DEALLOCATE(filtro,back1,back2,back3)
+
+
+END SUBROUTINE HBONDS_TOPOLOGICAL
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Donor number and Angle OOH; Donor-Number-Ang(o,o,h)
+!!!!
+!!!! Source: J. D. Smith, C. D. Cappa, et alt. Proc. Natl. Acad. Sci. U.S.A. 102, 14171 (2005).
+
+
+SUBROUTINE HBONDS_DONOR_ANG_OOH()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::angooh,aux_val,aux_cos,roh_val
+
+  DOUBLE PRECISION,DIMENSION(3)::aux,aux2
+
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::roo_val
+  DOUBLE PRECISION,DIMENSION(:,:,:),ALLOCATABLE::roo_vect_norm
+
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
+  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::back3
+
+
+  ALLOCATE(roo_val(NW,2),roo_vect_norm(NW,2,3))
+
+  DO i=1,NW
+     aux=XARR(i,1,:)
+     DO j=1,2
+        g=iarr(i,j,1)
+        aux2=XARR(g,1,:)-aux
+        CALL PBC (aux2)
+        aux_val=sqrt(dot_product(aux2,aux2))
+        aux2=aux2/aux_val
+        roo_val(i,j)=aux_val
+        roo_vect_norm(i,j,:)=aux2
+     END DO
+  END DO
+
+  DO i=1,NW
+     aux=XARR(i,1,:)
+     DO j=1,2
+        aux2=XARR(i,j+1,:)-aux
+        CALL PBC (aux2)
+        aux_val=sqrt(dot_product(aux2,aux2))
+        aux2=aux2/aux_val
+        g=iarr(i,j,1)
+        aux_cos=dot_product(aux2,roo_vect_norm(i,j,:))
+        IF (aux_cos>cos_angooh_param) THEN
+           roh_val=darr(i,j,1)
+           num_h2o(i,j)=1
+           h2o(i,j,1)=g
+           strength_h2o(i,j,1)=roh_val     ! Tomaré N como criterio para eliminar hbonds
+           !strength_h2o(i,j,1)=acos(aux_cos)
+           h=num_o2h(g)+1
+           num_o2h(g)=h
+           o2h(g,h)=i
+           o2which(g,h)=j
+           strength_o2h(g,h)=roh_val
+        END IF
+     END DO
+  END DO
+
+
+  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+  filtro=.false.
+
+  DO i=1,NW
+     g=num_o2h(i)
+     IF (g>1) THEN
+        back1=o2h(i,:)
+        back2=o2which(i,:)
+        back3=strength_o2h(i,:)
+        filtro(1:g)=.true.
+        DO jj=1,g
+           h=MINLOC(back3(:),DIM=1,MASK=filtro)
+           o2h(i,jj)=back1(h)
+           o2which(i,jj)=back2(h)
+           strength_o2h(i,jj)=back3(h)
+           filtro(h)=.false.
+        END DO
+     END IF
+  END DO
+
+  DEALLOCATE(filtro,back1,back2,back3)
+  DEALLOCATE(roo_val,roo_vect_norm)
+
+END SUBROUTINE HBONDS_DONOR_ANG_OOH
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!! Nearest Neighbour
+!!!!
+!!!! Source: THIS IS NOT A HYDROGEN BOND
+
+
+SUBROUTINE HBONDS_NEAREST_NEIGHBOUR()
+
+  IMPLICIT NONE
+  INTEGER::i,ii,j,jj,g,gg,h,hh
+  DOUBLE PRECISION::roh_val
+
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro
+  INTEGER,DIMENSION(:),ALLOCATABLE::back1,back2
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::back3
+
+  DO i=1,NW
+     DO j=1,2
+        g=iarr(i,j,1)
+        roh_val=darr(i,j,1)
+        num_h2o(i,j)=1
+        h2o(i,j,1)=g
+        strength_h2o(i,j,1)=roh_val     ! Tomaré N como criterio para eliminar hbonds
+        h=num_o2h(g)+1
+        num_o2h(g)=h
+        o2h(g,h)=i
+        o2which(g,h)=j
+        strength_o2h(g,h)=roh_val
+     END DO
+  END DO
+
+
+  ALLOCATE(filtro(6),back1(6),back2(6),back3(6))
+  filtro=.false.
+
+  DO i=1,NW
+     g=num_o2h(i)
+     IF (g>1) THEN
+        back1=o2h(i,:)
+        back2=o2which(i,:)
+        back3=strength_o2h(i,:)
+        filtro(1:g)=.true.
+        DO jj=1,g
+           h=MINLOC(back3(:),DIM=1,MASK=filtro)
+           o2h(i,jj)=back1(h)
+           o2which(i,jj)=back2(h)
+           strength_o2h(i,jj)=back3(h)
+           filtro(h)=.false.
+        END DO
+     END IF
+  END DO
+
+  DEALLOCATE(filtro,back1,back2,back3)
+
+
+END SUBROUTINE HBONDS_NEAREST_NEIGHBOUR
 
 
 
