@@ -1463,7 +1463,7 @@ END SUBROUTINE HBONDS_TOPOLOGICAL
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! Donor number and Angle OOH; Donor-Number-Ang(o,o,h)
 !!!!
-!!!! Source: J. D. Smith, C. D. Cappa, et alt. Proc. Natl. Acad. Sci. U.S.A. 102, 14171 (2005).
+!!!! Source: J. D. Smith, C. D. Cappa, et al. Proc. Natl. Acad. Sci. U.S.A. 102, 14171 (2005).
 
 
 SUBROUTINE HBONDS_DONOR_ANG_OOH()
