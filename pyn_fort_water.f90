@@ -1017,12 +1017,12 @@ SUBROUTINE REMOVE_PERMUT_SHORT_NOSIMETRIC(mol)
   key_aux=key
 
   IF (interruptor==.false.) THEN
-     IF ((ms_short2(13)==3).and.(ms_shor2(16==2))) THEN
+     IF ((ms_short2(13)==3).and.(ms_short2(16==2))) THEN
         CALL DOY_VUELTA()
         CALL DOY_VUELTA_KEY (key,key_aux)
         microstate=ms_short2
         key_aux=key
-     END DO
+     END IF
   END IF
 
 
