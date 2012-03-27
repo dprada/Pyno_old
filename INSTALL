@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ ! -d xdrfiles ]; then
+
+   echo ' '
+   echo '>>>>>> Installing the xdr libraries...'
+   tar -zxvf xdrfile-1.1.1.tar.gz 1>/dev/null
+   cd xdrfile-1.1.1/
+   ./configure --prefix=$PWD/../xdrfiles --enable-fortran F77=ifort --enable-shared 1> ../INSTALL.log 2>> ../INSTALL.log
+   make install 1>> ../INSTALL.log 2>> ../INSTALL.log
+   make test >> ../INSTALL.log 2>> ../INSTALL.log
+   cd ..
+   rm -r xdrfile-1.1.1
+   cd xdrfiles
+   path_xdr=$PWD
+   cd ..
+   awk '{if ($1=="path_lib_xdr") $3="\"'$path_xdr'\""; print $0}' pynoramix.py > pynoramix.py_new
+   mv pynoramix.py_new pynoramix.py
+
+   check=0
+   grep 'Testing basic xdrfile library: PASSED' INSTALL.log 1>/dev/null
+   check=$[$?+$check]
+   grep 'Testing xtc functionality: PASSED' INSTALL.log 1>/dev/null
+   check=$[$?+$check]
+   grep 'Testing trr functionality: PASSED' INSTALL.log 1>/dev/null
+   check=$[$?+$check]
+   if [ $check -eq 0 ]; then
+      echo '> XDR libraries compiled in '$path_xdr
+      echo '> Update the LD_LIBRARY_PATH with the addition of:'
+      echo '>' $path_xdr'/lib/'
+   else
+      echo '> Error: check the file INSTALL.log'
+   fi
+   echo ' '
+
+fi

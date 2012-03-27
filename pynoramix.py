@@ -1,6 +1,9 @@
 ##############################
 ######## Internal variables:
 
+path_lib_xdr = "/home/diego/Projects/Git_Pynoramix/Beta_Pyno/xdrfiles"
+
+!export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:
 
 ###############################
 ####### External modules:
@@ -31,5 +34,4 @@ from pyn_cl_net import *
 # GNM and ANM:
 #from pyn_cl_enm import *
 #import pyn_fort_enm as f_enm
-
 
