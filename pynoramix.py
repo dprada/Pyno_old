@@ -1,9 +1,8 @@
 ##############################
 ######## Internal variables:
 
-path_lib_xdr = "/home/diego/Projects/Git_Pynoramix/Beta_Pyno/xdrfiles"
+path_lib_xdr = XXX
 
-!export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:
 
 ###############################
 ####### External modules:

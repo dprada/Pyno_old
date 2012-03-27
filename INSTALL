@@ -34,3 +34,21 @@ if [ ! -d xdrfiles ]; then
    echo ' '
 
 fi
+
+if [ ! -e pyn_water.so ]; then
+   f2py --f90flags=-fast -c -m pyn_water pyn_water.f90
+fi
+
+if [ ! -e pyn_fort_enm.so ]; then
+   f2py --f90flags=-fast -c -m pyn_fort_enm pyn_fort_enm.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
+   #f2py2 -c -m pyn_fort_enm pyn_fort_enm.f90 -llapack
+fi
+
+if [ ! -e pyn_fort_general.so ]; then
+   f2py --f90flags=-fast -c -m pyn_fort_general pyn_fort_general.f90
+fi
+ 
+if [ ! -e pyn_fort_net.so ]; then
+   f2py --f90flags=-fast -c -m pyn_fort_net pyn_fort_net.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
+fi
+
