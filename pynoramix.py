@@ -1,9 +1,6 @@
 ##############################
 ######## Internal variables:
 
-home_path='~/Pyno/'
-
-
 
 ###############################
 ####### External modules:
@@ -14,7 +11,7 @@ import copy
 import pylab
 from numpy import *
 import pickle as pic
-
+import sys
 
 ##############################
 ######## Internal modules:
@@ -25,11 +22,10 @@ from pyn_cl_coors import *
 import pyn_fort_general as f
 
 # Water:
-#from pyn_cl_water import *
-#import pyn_fort_water as f_wat
+from pyn_cl_water import *
 
 # Networks:
-#from pyn_cl_net import *
+from pyn_cl_net import *
 #import pyn_fort_net as f_net
 
 # GNM and ANM:
