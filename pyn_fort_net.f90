@@ -3,6 +3,53 @@ MODULE funcs
 CONTAINS
 
 
+SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
+
+  IMPLICIT NONE
+
+  INTEGER,INTENT(IN)::N_nodes,Ktot
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  DOUBLE PRECISION,INTENT(IN)::p
+  DOUBLE PRECISION,INTENT(OUT)::db_dist
+
+
+  INTEGER::i,j,ii,jj
+  DOUBLE PRECISION::overp,aux_val
+  INTEGER::We_total,i_weight,i_trans,j_weight,j_trans
+
+  overp=1.0d0/p
+  db_dist=0.0d0
+
+  We_total=0
+
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        We_total=We_total+T_tau(j)
+     END DO
+  END DO
+
+  DO i=1,N_nodes
+     DO ii=T_start(i)+1,T_start(i+1)
+        j=T_ind(ii)
+        i_trans=T_tau(ii)
+        j_trans=0
+        DO jj=T_start(j)+1,T_start(j+1)
+           IF (i==T_ind(jj)) THEN
+              j_trans=T_tau(jj)
+              exit
+           END IF
+        END DO
+        db_dist=db_dist+(abs((i_trans-j_trans)*1.0d0)/(We_total*1.0d0))**p
+     END DO
+  END DO
+
+  db_dist=(0.50d0*db_dist)**overp
+
+
+
+END SUBROUTINE DETAILED_BALANCE_DISTANCE
+
 SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,T_start,N_nodes,Ktot)
 
   IMPLICIT NONE
@@ -169,7 +216,7 @@ END SUBROUTINE SYMMETRIZE_NET
 
 
 
-SUBROUTINE GRAD (N_sets,comunidades,Pe,T_ind,T_tau,T_start,N_nodes,Ktot)
+SUBROUTINE GRAD (N_sets,comunidades,T_ind,T_tau,T_start,N_nodes,Ktot)
 
 
   IMPLICIT NONE
@@ -178,10 +225,12 @@ SUBROUTINE GRAD (N_sets,comunidades,Pe,T_ind,T_tau,T_start,N_nodes,Ktot)
   INTEGER,INTENT(IN)::N_nodes,Ktot
   INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
-  INTEGER,DIMENSION(N_nodes),INTENT(IN)::Pe
+
 
   INTEGER,INTENT(OUT)::N_sets
   INTEGER,DIMENSION(N_nodes),INTENT(OUT)::comunidades
+
+  INTEGER,DIMENSION(:),ALLOCATABLE::Pe
 
 
   INTEGER:: i,j,jj,g,h,dim
@@ -198,6 +247,14 @@ SUBROUTINE GRAD (N_sets,comunidades,Pe,T_ind,T_tau,T_start,N_nodes,Ktot)
   logical,dimension(:),allocatable::label
   integer,dimension(:),allocatable::vect_aux1
 
+  ALLOCATE(Pe(N_nodes))
+  Pe=0
+
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
 
 
   dim=1
@@ -385,9 +442,11 @@ SUBROUTINE GRAD (N_sets,comunidades,Pe,T_ind,T_tau,T_start,N_nodes,Ktot)
   N_sets=h
 
 
+  DEALLOCATE(Pe)
+  DEALLOCATE(tope_lista,lista,label_glob_min,label_loc_min)
+  DEALLOCATE(label,vect_aux1)
 
 END SUBROUTINE GRAD
-
 
 
 SUBROUTINE BUILD_NET_BIN (f_traj_nodes,f_net,nw,frames)
