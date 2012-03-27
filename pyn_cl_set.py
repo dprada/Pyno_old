@@ -268,7 +268,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             # Waters
 
             for residue in self.resid[:]:
-                if residue.name in ['HOH','SOL','HO4','water']:
+                if residue.name in ['HOH','SOL','HO4','water','wat']:
                     if self.water_model==None:
                         self.water_model='tip'+str(len(residue.list_atoms))+'p'
                     temp_water=cl_water()
@@ -722,7 +722,6 @@ def xtc2bin(xtc_name,bin_name):
 def dot_product_3d(vect1,vect2):
 
     return f.aux_funcs_general.proj3d(vect1,vect2,len(vect1))
-
 
 def isothermal_compressibility(system,Temp,input_file,frame=None,begin=None,end=None):
 
