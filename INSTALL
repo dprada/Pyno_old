@@ -45,7 +45,7 @@ if [ ! -e pyn_fort_enm.so ]; then
 fi
 
 if [ ! -e pyn_fort_general.so ]; then
-   f2py --f90flags=-fast -c -m pyn_fort_general pyn_fort_general.f90
+   f2py --f90flags=-fast -c -m pyn_fort_general pyn_fort_general.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
 fi
  
 if [ ! -e pyn_fort_net.so ]; then
