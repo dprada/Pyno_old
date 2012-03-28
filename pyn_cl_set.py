@@ -171,7 +171,8 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.donors=[]                  # list of donnors
         self.dimensionality=0           # dimensionality (num_atoms*3)
 
-        # > Coordinates
+        # > Coordinates and Trajectory
+        self.f_traj=None
         self.frame=[]                   # list of coordinates (objects: cl_coors)
         self.num_frames=0               # number of frames or models
         self.last_frame=0               # auxilary index of the last frame analysed
@@ -587,6 +588,26 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                     temp_frame=cl_coors(self.coors_file,ii)
                     self.frame.append(temp_frame)
                 self.last_frame=end
+
+        elif self.coors_file.endswith('xtc'):
+            if begin==None and frame==None and end==None:
+                if self.f_traj==None:
+                    self.f_traj=xdrfile(self.coors_file)
+                elif self.f_traj.name!=self.coors_file:
+                    self.f_traj=xdrfile(self.coors_file)
+                temp_frame=cl_coors(self.coors_file,self.last_frame,self.f_traj)
+                self.frame.append(temp_frame)
+                self.last_frame+=1
+
+        elif self.coors_file.endswith('trr'):
+             if begin==None and frame==None and end==None:
+                if self.f_traj==None:
+                    self.f_traj=xdrfile(self.coors_file)
+                elif self.f_traj.name!=self.coors_file:
+                    self.f_traj=xdrfile(self.coors_file)
+                temp_frame=cl_coors(self.coors_file,self.last_frame,self.f_traj)
+                self.frame.append(temp_frame)
+                self.last_frame+=1
 
         self.num_frames=len(self.frame)
 
