@@ -2,6 +2,8 @@
 
 in_xdr=0
 in_f90=0
+f90_libs='-lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread'
+#f90_libs=-llapack
 
 if [ ! -d xdrfiles ]; then
 
@@ -61,7 +63,7 @@ fi
 
 for ff in ${f_files[*]}; do
     if [ ! -e ${ff%.*}.so ]; then
-	f2py --f90flags=-fast -c -m ${ff%.*} $ff 1>> INSTALL.log 2>> INSTALL.log
+	f2py --f90flags=-fast -c -m ${ff%.*} $ff $f90_libs 1>> INSTALL.log 2>> INSTALL.log
 	if [ ! -e ${ff%.*}.so ]; then
 	    echo '> Error compiling' $ff': check the file INSTALL.log'
 	else
