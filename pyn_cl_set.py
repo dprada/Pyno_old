@@ -596,6 +596,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 elif self.f_traj.name!=self.coors_file:
                     self.f_traj=xdrfile(self.coors_file)
                 temp_frame=cl_coors(self.coors_file,self.last_frame,self.f_traj)
+                if self.f_traj.status=='END': return
                 self.frame.append(temp_frame)
                 self.last_frame+=1
 

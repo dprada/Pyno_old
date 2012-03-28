@@ -30,9 +30,11 @@ class cl_coors:
 
             if self.file.endswith('xtc'):
                 self.read_xtc(f_traj,frame)
+                if f_traj.status=='END': return
 
             if self.file.endswith('trr'):
                 self.read_trr(f_traj,frame)
+                if f_traj.status=='END': return
 
             self.coors=array(self.coors,order='Fortran')
         
@@ -163,6 +165,9 @@ class cl_coors:
 
         f=f_traj.upload_frame()
 
+        if f_traj.status=='END':
+            return
+
         self.coors=f.x
         self.box=f.box
         self.step=f.step
@@ -173,6 +178,9 @@ class cl_coors:
     def read_trr (self, f_traj,frame):
 
         f=f_traj.upload_frame()
+
+        if f_traj.status=='END':
+            return
 
         self.coors=f.x
         self.box=f.box
@@ -213,6 +221,7 @@ class xdrfile:
     def __init__(self,fn,ft="Auto"):
 
         self.name=fn
+        self.status='OPENED'
 
         if ft=="Auto":
           ft = os.path.splitext(fn)[1][1:]
@@ -289,11 +298,12 @@ class xdrfile:
             f.lam=lam.value
         #check return value
         if result==self.exdrENDOFFILE: 
-            print 'End of file'
+            print '# End of file',self.name
+            self.status='END'
             return
         if result==self.exdrINT and self.mode=='trr': 
             print 'mmm...'
-            return
+            return 0
             #TODO: dirty hack. read_trr return exdrINT not exdrENDOFFILE
         if result!=self.exdrOK: raise IOError("Error reading xdr file")
             
