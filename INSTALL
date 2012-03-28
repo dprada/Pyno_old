@@ -1,12 +1,17 @@
 #!/bin/bash
 
+in_xdr=0
+in_f90=0
+
 if [ ! -d xdrfiles ]; then
 
+   in_xdr=1
    echo ' '
    echo '>>>>>> Installing the xdr libraries...'
+   echo '>>>>>> Installing the xdr libraries...' > INSTALL.log
    tar -zxvf xdrfile-1.1.1.tar.gz 1>/dev/null
    cd xdrfile-1.1.1/
-   ./configure --prefix=$PWD/../xdrfiles --enable-fortran F77=ifort --enable-shared 1> ../INSTALL.log 2>> ../INSTALL.log
+   ./configure --prefix=$PWD/../xdrfiles --enable-fortran F77=ifort --enable-shared 1>> ../INSTALL.log 2>> ../INSTALL.log
    make install 1>> ../INSTALL.log 2>> ../INSTALL.log
    make test >> ../INSTALL.log 2>> ../INSTALL.log
    cd ..
@@ -35,20 +40,38 @@ if [ ! -d xdrfiles ]; then
 
 fi
 
-if [ ! -e pyn_water.so ]; then
-   f2py --f90flags=-fast -c -m pyn_water pyn_water.f90
+f_files=(pyn_water.f90 pyn_fort_enm.f90 pyn_fort_general.f90 pyn_fort_net.f90)
+
+
+for ff in ${f_files[*]}; do
+    if [ ! -e ${ff%.*}.so ]; then
+	in_f90=1
+    fi
+done
+
+if [ $in_f90 -eq 1 ]; then
+    echo ' '
+    echo '>>>>>> Compiling the fortran libraries...'
+    if [ $in_xdr -eq 1 ]; then
+	echo '>>>>>> Compiling the fortran libraries...' >> INSTALL.log
+    else
+	echo '>>>>>> Compiling the fortran libraries...' > INSTALL.log
+    fi
 fi
 
-if [ ! -e pyn_fort_enm.so ]; then
-   f2py --f90flags=-fast -c -m pyn_fort_enm pyn_fort_enm.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
-   #f2py2 -c -m pyn_fort_enm pyn_fort_enm.f90 -llapack
+for ff in ${f_files[*]}; do
+    if [ ! -e ${ff%.*}.so ]; then
+	f2py --f90flags=-fast -c -m ${ff%.*} $ff 1>> INSTALL.log 2>> INSTALL.log
+	if [ ! -e ${ff%.*}.so ]; then
+	    echo '> Error compiling' $ff': check the file INSTALL.log'
+	else
+	    echo '>' ${ff%.*}.so 'compiled.'
+	fi
+    fi
+done
+
+if [ $in_f90 -eq 1 ]; then
+    echo ' '
 fi
 
-if [ ! -e pyn_fort_general.so ]; then
-   f2py --f90flags=-fast -c -m pyn_fort_general pyn_fort_general.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
-fi
- 
-if [ ! -e pyn_fort_net.so ]; then
-   f2py --f90flags=-fast -c -m pyn_fort_net pyn_fort_net.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
-fi
 
