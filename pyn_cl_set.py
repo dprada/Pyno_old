@@ -162,6 +162,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.resid=[]                   # list of residues (objects: molecule)
         self.chain=[]                   # list of chains   (objects: molecule)
         self.chains=[]                  # list of chain names (strings)
+        self.ion=[]                     # list of ions (objects: molecule)
         self.water=[]                   # list of waters   (objects: cl_water)
         self.water_model=None           # water model
         self.parent=None                # Parent set if it comes from selection (object: labels_parent)
@@ -339,6 +340,16 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 residue.chain.name=self.atom[ii].chain.name
                 residue.chain.index=self.atom[ii].chain.index
 
+            # Ions
+
+            for atom in self.atom[:]:
+                if atom.name in ['K','NA','CL'] and atom.resid.name in ['  K',' NA',' CL']:
+                    temp_residue=cl_residue()
+                    temp_residue.list_atoms=[atom.index]
+                    temp_residue.index=atom.resid.index
+                    temp_residue.pdb_index=atom.resid.pdb_index
+                    temp_residue.name=atom.resid.name
+                    self.ion.append(temp_residue)
 
             # Deleting the auxiliary dictionary:
             del(aux)
@@ -356,16 +367,15 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             self.num_residues=len(self.resid)
             self.num_waters=len(self.water)
             self.num_chains=len(self.chains)
+            self.num_ions=len(self.ion)
             self.list_atoms=[ii for ii in range(self.num_atoms)]
 
             ### Loading coordinates
             if coors:
                 self.load_coors(self.file)
  
-
             if verbose:
                 self.info()
-
 
         ## END of IF input_file
 
@@ -385,11 +395,13 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.num_chains=len(self.chain)
         self.num_waters=len(self.water)
         self.num_frames=len(self.frame)
+        self.num_ions=len(self.ion)
         print '#','System created from the file ',self.file,':'
         print '#',self.num_atoms,' atoms'
         print '#',self.num_residues,' residues'
         print '#',self.num_chains,' chains'
         print '#',self.num_waters,' waters'
+        print '#',self.num_ions,' ions'
         print '#',self.num_frames,' frames/models'
 
     # To handle files
