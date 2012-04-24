@@ -740,6 +740,24 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 #### Functions
 ####
 
+def min_distance(system,set_a,set_b=None,pbc=True,type_b='atoms'):
+
+    if set_b==None:
+
+        ind_a1,ind_a2,min_dist = f.aux_funcs_general.min_dist_atoms(pbc,True,system.frame[0].coors,system.frame[0].box,set_a,set_a,system.num_atoms,len(set_a),len(set_a))
+
+    else:
+        if type_b=='atoms':
+            ind_a1,ind_a2,min_dist = f.aux_funcs_general.min_dist_atoms(pbc,False,system.frame[0].coors,system.frame[0].box,set_a,set_b,system.num_atoms,len(set_a),len(set_b))
+        elif type_b=='vectors':
+            l_vects=shape(set_b)
+            if len(l_vects)==1:
+                set_b=[set_b]
+                l_vects=shape(set_b)
+            array(set_b,order='Fortran')
+            ind_a1,ind_a2,min_dist = f.aux_funcs_general.min_dist_atoms_ref(pbc,system.frame[0].coors,system.frame[0].box,set_a,set_b,system.num_atoms,len(set_a),l_vects[0])
+    
+    return ind_a1,ind_a2,min_dist
 
 
 def xtc2bin(xtc_name,bin_name):

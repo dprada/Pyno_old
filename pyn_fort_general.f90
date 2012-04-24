@@ -44,6 +44,95 @@ END IF
 END SUBROUTINE dist
 
 
+SUBROUTINE min_dist_atoms (pbc_opt,eq_opt,coors,box,list_a,list_b,N_tot,N_a,N_b,ind_a,ind_b,min_dist)
+
+  IMPLICIT NONE
+  integer,intent(in)::N_tot,N_a,N_b,pbc_opt,eq_opt
+  real,dimension(N_tot,3),intent(in)::coors
+  REAL,DIMENSION(3,3),INTENT(IN)::box
+  INTEGER,DIMENSION(N_a),INTENT(IN)::list_a
+  INTEGER,DIMENSION(N_b),INTENT(IN)::list_b
+  INTEGER,DIMENSION(N_a)::auxlist_a
+  INTEGER,DIMENSION(N_b)::auxlist_b
+  INTEGER,INTENT(OUT)::ind_a,ind_b
+  REAL,INTENT(OUT)::min_dist
+
+  REAL,DIMENSION(3)::vect,vect_a
+  REAL::aux_dist
+  INTEGER::i,j,ia,jb
+
+  auxlist_a=list_a+1
+  auxlist_b=list_b+1
+
+  vect=0.0d0
+  min_dist=1.0d0/0.0d0
+  DO i=1,N_a
+     ia=auxlist_a(i)
+     vect_a=coors(ia,:)
+     DO j=1,N_b
+        jb=auxlist_b(j)
+        IF ((eq_opt==0).or.(jb>ia)) THEN
+           vect=(coors(jb,:)-vect_a(:))
+           IF (pbc_opt==1) CALL PBC (vect,box)
+           aux_dist=sqrt(dot_product(vect,vect))
+           IF (aux_dist<min_dist) THEN
+              min_dist=aux_dist
+              ind_a=ia
+              ind_b=jb
+           END IF
+        END IF
+     END DO
+  END DO
+  
+  ind_a=ind_a-1
+  ind_b=ind_b-1
+
+END SUBROUTINE min_dist_atoms
+
+SUBROUTINE min_dist_atoms_ref (pbc_opt,coors,box,list_a,list_coors_b,N_tot,N_a,N_b,ind_a,ind_b,min_dist)
+
+  IMPLICIT NONE
+  integer,intent(in)::N_tot,N_a,N_b,pbc_opt
+  real,dimension(N_tot,3),intent(in)::coors
+  REAL,DIMENSION(3,3),INTENT(IN)::box
+  INTEGER,DIMENSION(N_a),INTENT(IN)::list_a
+  REAL,DIMENSION(N_b,3),INTENT(IN)::list_coors_b
+  INTEGER,DIMENSION(N_a)::auxlist_a
+  INTEGER,INTENT(OUT)::ind_a,ind_b
+  REAL,INTENT(OUT)::min_dist
+
+  REAL,DIMENSION(3)::vect,vect_a
+  REAL::aux_dist
+  INTEGER::i,j,ia,jb
+
+  auxlist_a=list_a+1
+
+  vect=0.0d0
+  min_dist=1.0d0/0.0d0
+  do i=1,N_a
+     ia=auxlist_a(i)
+     vect_a=coors(ia,:)
+     do j=1,N_b
+        vect=(list_coors_b(j,:)-vect_a(:))
+        IF (pbc_opt==1) CALL PBC (vect,box)
+        aux_dist=sqrt(dot_product(vect,vect))
+        IF (aux_dist<min_dist) THEN
+           min_dist=aux_dist
+           ind_a=ia
+           ind_b=j
+        END IF
+     end do
+  end do
+
+  ind_a=ind_a-1
+  ind_b=ind_b-1
+
+END SUBROUTINE min_dist_atoms_ref
+
+
+
+
+
 SUBROUTINE neighbs_limit(pbc_opt,ident,limit,coors1,box1,coors2,n_atoms1,n_atoms2,neighb_list,neighb_dist,neighb_uvect)
 
   IMPLICIT NONE
