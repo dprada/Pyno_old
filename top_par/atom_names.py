@@ -134,6 +134,7 @@ atom={
 
 ## Water
 'OW'   : 'atOW'   ,
+'OH2'  : 'atOW'   ,
 'HW1'  : 'atHW1'  ,
 'HW2'  : 'atHW2'  ,
 'MW'   : 'atvir'  ,
@@ -144,8 +145,6 @@ atom={
 'NA'    :  'itNA' ,
 'K'     :  'itK'
 }
-
-
 
 
 atom_nature={

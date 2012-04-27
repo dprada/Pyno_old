@@ -287,14 +287,12 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                     for ii in residue.list_atoms:
                         atom=self.atom[ii]
                         if atom.name in ['OW']:
-                            atom.acceptor=True
                             atom.polar_class='acceptor'
                             atom.polarizability=True
                             temp_water.O.index=atom.index
                             temp_water.O.pdb_index=atom.pdb_index
                             temp_water.O.name='OW'
                         if atom.name in ['O']:
-                            atom.acceptor=True
                             atom.polar_class='acceptor'
                             atom.polarizability=True
                             temp_water.O.index=atom.index
@@ -303,7 +301,6 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                             temp_water.H1=None
                             temp_water.H2=None
                         if atom.name in ['HW1','HW2']:
-                            atom.donor=True
                             atom.polar_class='donor'
                             atom.polarizability=True
                             if atom.name in ['HW1']:
@@ -363,6 +360,42 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                         self.atom[aa].covalent_bonds.append(bb)
                         self.atom[bb].covalent_bonds.append(aa)
 
+            # Acceptors-Donors
+            # Default:
+            for atom in self.atom[:]:
+                if tp.atom[atom.name] in tp.donors: atom.donor=True
+                if tp.atom[atom.name] in tp.acceptors: atom.acceptor=True
+            # Exceptions: (This needs to be polished)
+            exc_res_don=[ii[0] for ii in tp.donors_exception]
+            exc_res_acc=[ii[0] for ii in tp.acceptors_exception]
+            for residue in self.resid[:]:
+                if residue.name in exc_res_don:
+                    for exception in tp.donors_exception:
+                        if residue.name == exception[0]:
+                            for ii in residue.list_atoms:
+                                if tp.atom[self.atom[ii].name]==exception[1]:
+                                    cov=0
+                                    for jj in self.atom[ii].covalent_bonds:
+                                        if tp.atom_nature[self.atom[jj].name]=='H': 
+                                            cov=1
+                                            break
+                                        if exception[2]=='Always': self.atom[ii].donor=exception[2]
+                                        elif exception[2]=='Hbonded' and cov==1: self.atom[ii].donor=exception[2]
+                                        elif exception[2]=='Not Hbonded' and cov==0: self.atom[ii].donor=exception[2]
+                if residue.name in exc_res_acc:
+                    for exception in tp.acceptors_exception:
+                        if residue.name == exception[0]:
+                            for ii in residue.list_atoms:
+                                if tp.atom[self.atom[ii].name]==exception[1]:
+                                    cov=0
+                                    for jj in self.atom[ii].covalent_bonds:
+                                        if tp.atom_nature[self.atom[jj].name]=='H': 
+                                            cov=1
+                                            break
+                                        if exception[2]=='Always': self.atom[ii].acceptor=exception[2]
+                                        elif exception[2]=='Hbonded' and cov==1: self.atom[ii].acceptor=exception[2]
+                                        elif exception[2]=='Not Hbonded' and cov==0: self.atom[ii].acceptor=exception[2]
+                                
 
             ### Setting up the global attributes
 
