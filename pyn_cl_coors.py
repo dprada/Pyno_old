@@ -1,10 +1,18 @@
 from numpy import *
 import struct as stc #To read binary files
 
+class labels_file_traj():
+    def __init__(self):
+        self.name=None
+        self.status=None
+
+    def restart(self):
+        self.status=None
+
 class cl_coors:
 
 
-    def __init__(self,file_input=None,frame=None,f_traj=None):
+    def __init__(self,file_input=None,frame=None,file_traj=None):
 
         self.file=file_input
         self.time=0
@@ -29,12 +37,12 @@ class cl_coors:
                 self.read_bin(self.file,frame)
 
             if self.file.endswith('xtc'):
-                self.read_xtc(f_traj,frame)
-                if f_traj.status=='END': return
+                self.read_xtc(file_traj,frame)
+                if file_traj.status=='END': return
 
             if self.file.endswith('trr'):
-                self.read_trr(f_traj,frame)
-                if f_traj.status=='END': return
+                self.read_trr(file_traj,frame)
+                if file_traj.status=='END': return
 
             self.coors=array(self.coors,order='Fortran')
         
@@ -120,52 +128,52 @@ class cl_coors:
 
       
        # if FF.closed==False:                     # Checking if the file was not opened before
-        self.f_traj=open(name_file,'rb')      
+        self.file_traj=open(name_file,'rb')      
            
            
             
-        N_A=stc.unpack('i', self.f_traj.read(4))[0]
-	self.box[0][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]    # Using the global variable (pyn_var_glob.py)
-        self.box[1][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]    # for the size of the box vg.box        
-        self.box[2][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]         
+        N_A=stc.unpack('i', self.file_traj.read(4))[0]
+	self.box[0][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]    # Using the global variable (pyn_var_glob.py)
+        self.box[1][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]    # for the size of the box vg.box        
+        self.box[2][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]         
         
         if frame!= None: 
             self.frame=frame            # Going to the choosen frame
             bytes_frame=(13+N_A*3)*4       # Bytes per frame
-            self.f_traj.seek(bytes_frame*self.frame,1)     # Jumping to the choosen frame
+            self.file_traj.seek(bytes_frame*self.frame,1)     # Jumping to the choosen frame
             
         else:
             self.frame+=1
      
         # print self.frame
-        # temp_coors.num_atoms=stc.unpack('i', self.f_traj.read(4))[0]            # Reading Attributes
-        N_A=stc.unpack('i', self.f_traj.read(4))[0]                              # N_A  = number of atoms
+        # temp_coors.num_atoms=stc.unpack('i', self.file_traj.read(4))[0]            # Reading Attributes
+        N_A=stc.unpack('i', self.file_traj.read(4))[0]                              # N_A  = number of atoms
 
-        self.step=stc.unpack('i', self.f_traj.read(4))[0]
-        self.time=stc.unpack('f', self.f_traj.read(4))[0]
-        self.box[0][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]    # Using the global variable (pyn_var_glob.py)
-        self.box[1][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]    # for the size of the box vg.box        
-        self.box[2][:]=stc.unpack('3f', self.f_traj.read(3*4))[0:3]                                                 
+        self.step=stc.unpack('i', self.file_traj.read(4))[0]
+        self.time=stc.unpack('f', self.file_traj.read(4))[0]
+        self.box[0][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]    # Using the global variable (pyn_var_glob.py)
+        self.box[1][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]    # for the size of the box vg.box        
+        self.box[2][:]=stc.unpack('3f', self.file_traj.read(3*4))[0:3]                                                 
         
         format=str(3*N_A)+'f'                                   # Format of system's coordinates
-        temp=stc.unpack(format, self.f_traj.read(N_A*4*3))[0:N_A*3]
+        temp=stc.unpack(format, self.file_traj.read(N_A*4*3))[0:N_A*3]
         
         for ii in range(0,3*N_A,3):
             aux=temp[ii:ii+3]
             
             self.coors.append(aux)
-        self.precision=stc.unpack('f',self.f_traj.read(4))[0]             # Precision of the trajectory
+        self.precision=stc.unpack('f',self.file_traj.read(4))[0]             # Precision of the trajectory
        
-        self.f_traj.close()
+        self.file_traj.close()
        # return temp_coors
 
 
 #>>>>>>>>>> TRAJ.XTC
-    def read_xtc (self, f_traj,frame):
+    def read_xtc (self, file_traj,frame):
 
-        f=f_traj.upload_frame()
+        f=file_traj.upload_frame()
 
-        if f_traj.status=='END':
+        if file_traj.status=='END':
             return
 
         self.coors=f.x
@@ -175,11 +183,11 @@ class cl_coors:
         self.precision=f.prec
 
 #>>>>>>>>>> TRAJ.TRR
-    def read_trr (self, f_traj,frame):
+    def read_trr (self, file_traj,frame):
 
-        f=f_traj.upload_frame()
+        f=file_traj.upload_frame()
 
-        if f_traj.status=='END':
+        if file_traj.status=='END':
             return
 
         self.coors=f.x
@@ -214,12 +222,13 @@ class frame:
         self.box = empty((3,3),float32)
 
 
-class xdrfile:
+class xdrfile(labels_file_traj):
     exdrOK, exdrHEADER, exdrSTRING, exdrDOUBLE, exdrINT, exdrFLOAT, exdrUINT, exdr3DX, exdrCLOSE, exdrMAGIC, exdrNOMEM, exdrENDOFFILE, exdrNR = range(13)
 
     #
     def __init__(self,fn,ft="Auto"):
 
+        self.restart()
         self.name=fn
         self.status='OPENED'
 

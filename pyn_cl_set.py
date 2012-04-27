@@ -4,16 +4,18 @@
 # This module requires:
 #
 
-from pyn_cl_coors import *
 from os import system
 from os import path
+from os import sys
+from pyn_cl_coors import *
+sys.path.append('top_par/')
+import top_par as tp
 from numpy import *
 import copy
 import pylab
 import pyn_fort_general as f
 import pickle as pic
 import datetime as datetime
-
 
 #
 # Structure of the file:
@@ -89,6 +91,8 @@ class cl_unit(labels_unit):                     # Attributes of an atom
         self.elem_symb=''               # Element symbol (PDB)
         self.type_pdb=''                # Type of atom for the PDB (ATOM,HETATM)
 
+        self.covalent_bonds=[]          # esto deberia estar heredado de labels_unit @!!!!!!@
+
         # > Physical and Chemical properties
 
         self.mass=0.0                   # Mass
@@ -146,7 +150,7 @@ class cl_water(labels_set):             # Attributes of a water molecule
 class molecule(labels_set):               # The suptra-estructure: System (waters+cofactors+proteins...)
 
     
-    def __init__(self,input_file=None,download=None,coors=True,verbose=True):
+    def __init__(self,input_file=None,download=None,coors=True,verbose=True,with_bonds=False):
 
         # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
 
@@ -173,7 +177,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.dimensionality=0           # dimensionality (num_atoms*3)
 
         # > Coordinates and Trajectory
-        self.f_traj=None
+        self.file_traj=labels_file_traj()
         self.frame=[]                   # list of coordinates (objects: cl_coors)
         self.num_frames=0               # number of frames or models
         self.last_frame=0               # auxilary index of the last frame analysed
@@ -310,16 +314,6 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                                 temp_water.H2.index=atom.index
                                 temp_water.H2.pdb_index=atom.pdb_index
                                 temp_water.H2.name='HW2'
-                    if len(temp_water.list_atoms) >= 3:
-                        ii_O=temp_water.O.index; ii_H1=temp_water.H1.index; ii_H2=temp_water.H2.index
-                        temp_water.O.covalent_bonds.append(ii_H1)
-                        temp_water.O.covalent_bonds.append(ii_H2)
-                        temp_water.H1.covalent_bonds.append(ii_O)
-                        temp_water.H2.covalent_bonds.append(ii_O)
-                        self.atom[ii_O].covalent_bonds=temp_water.O.covalent_bonds
-                        self.atom[ii_H1].covalent_bonds=temp_water.H1.covalent_bonds
-                        self.atom[ii_H2].covalent_bonds=temp_water.H2.covalent_bonds
-
 
                     self.water.append(temp_water)
 
@@ -343,7 +337,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             # Ions
 
             for atom in self.atom[:]:
-                if atom.name in ['K','NA','CL'] and atom.resid.name in ['  K',' NA',' CL']:
+                if tp.residue_type[atom.resid.name]=='Ion':
                     temp_residue=cl_residue()
                     temp_residue.list_atoms=[atom.index]
                     temp_residue.index=atom.resid.index
@@ -353,6 +347,22 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             # Deleting the auxiliary dictionary:
             del(aux)
+
+            ### Setting up the local attributes
+
+            # Covalent bonds
+
+            if with_bonds:
+                for residue in self.resid[:]:
+                    aux_name={}
+                    for ii in residue.list_atoms:
+                        aux_name[tp.atom[self.atom[ii].name]]=ii
+                    for ii in tp.covalent_bonds[residue.name]:
+                        aa=aux_name[ii[0]]
+                        bb=aux_name[ii[1]]
+                        self.atom[aa].covalent_bonds.append(bb)
+                        self.atom[bb].covalent_bonds.append(aa)
+
 
             ### Setting up the global attributes
 
@@ -425,7 +435,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 temp_atom.pdb_index=int(line[6:11])
                 temp_atom.name=(line[12:16].split())[0]
                 temp_atom.alt_loc=line[16]
-                temp_atom.resid.name=(line[17:20])
+                temp_atom.resid.name=(line[17:20]).replace(' ', '')
                 temp_atom.chain.name=line[21]
                 temp_atom.resid.pdb_index=int(line[22:26])
                 temp_atom.code_ins_res=line[26]
@@ -603,22 +613,20 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
         elif self.coors_file.endswith('xtc'):
             if begin==None and frame==None and end==None:
-                if self.f_traj==None:
-                    self.f_traj=xdrfile(self.coors_file)
-                elif self.f_traj.name!=self.coors_file:
-                    self.f_traj=xdrfile(self.coors_file)
-                temp_frame=cl_coors(self.coors_file,self.last_frame,self.f_traj)
-                if self.f_traj.status=='END': return
+                if self.file_traj.status==None or self.file_traj.name!=self.coors_file:
+                    self.file_traj=xdrfile(self.coors_file)
+                temp_frame=cl_coors(self.coors_file,self.last_frame,self.file_traj)
+                if self.file_traj.status=='END': return
                 self.frame.append(temp_frame)
                 self.last_frame+=1
 
         elif self.coors_file.endswith('trr'):
              if begin==None and frame==None and end==None:
-                if self.f_traj==None:
-                    self.f_traj=xdrfile(self.coors_file)
-                elif self.f_traj.name!=self.coors_file:
-                    self.f_traj=xdrfile(self.coors_file)
-                temp_frame=cl_coors(self.coors_file,self.last_frame,self.f_traj)
+                if self.file_traj==None:
+                    self.file_traj=xdrfile(self.coors_file)
+                elif self.file_traj.name!=self.coors_file:
+                    self.file_traj=xdrfile(self.coors_file)
+                temp_frame=cl_coors(self.coors_file,self.last_frame,self.file_traj)
                 self.frame.append(temp_frame)
                 self.last_frame+=1
 
