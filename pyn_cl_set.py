@@ -174,6 +174,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         # > Physical and Chemical properties
         self.acceptors=[]               # list of acceptors
         self.donors=[]                  # list of donnors
+        self.donors_hydrogen={}         # dict. (index donor atom : index H)
         self.dimensionality=0           # dimensionality (num_atoms*3)
 
         # > Coordinates and Trajectory
@@ -361,11 +362,13 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                         self.atom[bb].covalent_bonds.append(aa)
 
             # Acceptors-Donors
-            # Default:
+
+                # Default:
             for atom in self.atom[:]:
                 if tp.atom[atom.name] in tp.donors: atom.donor=True
                 if tp.atom[atom.name] in tp.acceptors: atom.acceptor=True
-            # Exceptions: (This needs to be polished)
+
+                # Exceptions: (This needs to be polished)
             exc_res_don=[ii[0] for ii in tp.donors_exception]
             exc_res_acc=[ii[0] for ii in tp.acceptors_exception]
             for residue in self.resid[:]:
@@ -395,18 +398,26 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                                         if exception[2]=='Always': self.atom[ii].acceptor=exception[2]
                                         elif exception[2]=='Hbonded' and cov==1: self.atom[ii].acceptor=exception[2]
                                         elif exception[2]=='Not Hbonded' and cov==0: self.atom[ii].acceptor=exception[2]
-                                
+
+            for atom in self.atom[:]:
+                if atom.acceptor: self.acceptors.append(atom.index)
+                if atom.donor:
+                    self.donors.append(atom.index)
+                    for ind_cov in atom.covalent_bonds:
+                        if tp.atom_nature[tp.atom[self.atom[ind_cov].name]]=='H':
+                            try: 
+                                self.donors_hydrogen[atom.index].append(ind_cov)
+                            except:
+                                self.donors_hydrogen[atom.index]=[ind_cov]
+
+            self.acceptors=array(self.acceptors,order='Fortran')
+            self.donors=array(self.donors,order='Fortran')
 
             ### Setting up the global attributes
 
             self.name=self.file[:-self.file[::-1].find('.')-1]       # file=FOO.N.pdb -> name=FOO.N
             self.num_atoms=len(self.atom)
             self.dimensionality=self.num_atoms*3
-            for atom in self.atom[:]:
-                if atom.acceptor: self.acceptors.append(atom.index)
-                if atom.donor: self.donors.append(atom.index)
-            self.acceptors=array(self.acceptors,order='Fortran')
-            self.donors=array(self.donors,order='Fortran')
             self.num_residues=len(self.resid)
             self.num_waters=len(self.water)
             self.num_chains=len(self.chains)
