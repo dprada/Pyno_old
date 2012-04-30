@@ -186,6 +186,7 @@ def hbonds(system1=None,select1=None,system2=None,select2=None,box=None,r_param=
         f_hb.hbonds.num_hdon2=array(num_Hdon2,dtype=int,order='Fortran')
         f_hb.hbonds.ind_acc2=array(ind_acc2,dtype=int,order='Fortran')
        
+        # I should get rid of this
         for jj in range(Ldon1):
             f_hb.hbonds.coor_don1[jj,:]=system1.frame[0].coors[ind_don1[jj],:]
             for kk in range(num_Hdon1[jj]):
@@ -193,7 +194,7 @@ def hbonds(system1=None,select1=None,system2=None,select2=None,box=None,r_param=
                 f_hb.hbonds.coor_hdon1[jj,kk,:]=system1.frame[0].coors[bb,:]
         for jj in range(Lacc1):
             f_hb.hbonds.coor_acc1[jj,:]=system1.frame[0].coors[ind_acc1[jj],:]
-
+         
         for jj in range(Ldon2):
             f_hb.hbonds.coor_don2[jj,:]=system1.frame[0].coors[ind_don2[jj],:]
             for kk in range(num_Hdon2[jj]):
@@ -202,36 +203,38 @@ def hbonds(system1=None,select1=None,system2=None,select2=None,box=None,r_param=
         for jj in range(Lacc2):
             f_hb.hbonds.coor_acc2[jj,:]=system1.frame[0].coors[ind_acc2[jj],:]
 
-
+        # I should correct the use of pointers in the function
+        # apparently is slow.
         f_hb.hbonds.same_set(r_param,ang_param)
-
+         
+        ## I should get rid of this 
         for jj in range(f_hb.hbonds.num_hbs1):
             aa=f_hb.hbonds.salida1[jj,0]
             bb=f_hb.hbonds.salida1[jj,1]
             f_hb.hbonds.salida1[jj,1]=dind_Hdon1[aa][bb]
-
+         
         for jj in range(f_hb.hbonds.num_hbs2):
             aa=f_hb.hbonds.salida2[jj,0]
             bb=f_hb.hbonds.salida2[jj,1]
             f_hb.hbonds.salida2[jj,1]=dind_Hdon1[aa][bb]
-
+         
         for jj in range(f_hb.hbonds.num_hbs3):
             aa=f_hb.hbonds.salida3[jj,0]
             bb=f_hb.hbonds.salida3[jj,1]
             f_hb.hbonds.salida3[jj,1]=dind_Hdon2[aa][bb]
-
+         
         for jj in range(f_hb.hbonds.num_hbs4):
             aa=f_hb.hbonds.salida4[jj,0]
             bb=f_hb.hbonds.salida4[jj,1]
             f_hb.hbonds.salida4[jj,1]=dind_Hdon2[aa][bb]
-
-
-
+         
+         
+         
         output1=copy.deepcopy(f_hb.hbonds.salida1)
         output2=copy.deepcopy(f_hb.hbonds.salida2)
         output3=copy.deepcopy(f_hb.hbonds.salida3)
         output4=copy.deepcopy(f_hb.hbonds.salida4)
-
+         
         f_hb.hbonds.free_memory()
 
 
@@ -291,8 +294,4 @@ def hbonds(system1=None,select1=None,system2=None,select2=None,box=None,r_param=
         f_hb.hbonds.free_memory()
 
     return f_hb.hbonds.num_hbs1, f_hb.hbonds.num_hbs2
-    #return #output1,output2
-
-
-    # hbonds=[[don][h][acc],[don][h][acc],...]
 

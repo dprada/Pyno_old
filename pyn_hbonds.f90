@@ -194,6 +194,8 @@ CONTAINS
 
   SUBROUTINE SAME_SET (r_param,ang_param)
 
+
+    ! I should get rid of the pointers.
     DOUBLE PRECISION,INTENT(IN)::r_param,ang_param
     INTEGER::i,j,k,l,ii,jj,g,gg
 
@@ -395,7 +397,7 @@ CONTAINS
        END DO
     END DO
 
-    ALLOCATE(salida3(num_hbs2,3))
+    ALLOCATE(salida3(num_hbs3,3))
 
     num_hbs3=0
 
