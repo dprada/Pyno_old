@@ -41,14 +41,16 @@ def hbonds_pack (system1=None,select1=None,system2=None,select2=None,verbose=Tru
                 ind_don1.append(ii+1)
                 ind_Hdon1.append(system1.donors_hydrogen[ii])
                 num_Hdon1.append(len(system1.donors_hydrogen[ii]))
-            if system1.atom[ii].acceptor: ind_acc1.append(ii+1)
+            if system1.atom[ii].acceptor: 
+                ind_acc1.append(ii+1)
 
         for ii in select2:
             if system2.atom[ii].donor: 
                 ind_don2.append(ii+1)
                 ind_Hdon2.append(system2.donors_hydrogen[ii])
                 num_Hdon2.append(len(system2.donors_hydrogen[ii]))
-            if system2.atom[ii].acceptor: ind_acc2.append(ii+1)
+            if system2.atom[ii].acceptor: 
+                ind_acc2.append(ii+1)
 
         same_set=False
 

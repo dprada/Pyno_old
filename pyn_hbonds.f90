@@ -86,6 +86,7 @@ CONTAINS
     DOUBLE PRECISION,DIMENSION(maxH1,3)::vect_Hdon1
     DOUBLE PRECISION,DIMENSION(maxH2,3)::vect_Hdon2
     DOUBLE PRECISION,DIMENSION(3)::vect_aux,pos_d
+    DOUBLE PRECISION::aux_cos,norm,cos_ang
 
 
     ALLOCATE(HB_don1(Ldon1,maxH1,maxHBs))
@@ -103,7 +104,7 @@ CONTAINS
     Lbox_2=Lbox/2.0d0
 
     DO i=1,Ldon1
-       ii=ind_don2(i)
+       ii=ind_don1(i)
        pos_d=coor1(ii,:)
        DO k=1,num_Hdon1(i)
           kk=ind_Hdon1(i,k)
@@ -125,7 +126,7 @@ CONTAINS
                    num_hbs1=num_hbs1+1
                    g=num_HB_don1(i,k)
                    gg=g+1
-                   HB_don1(i,k,gg)=jj-1
+                   HB_don1(i,k,gg)=jj
                    num_HB_don1(i,k)=gg
                 END IF
              END DO
@@ -157,7 +158,7 @@ CONTAINS
                    num_hbs2=num_hbs2+1
                    g=num_HB_don2(i,k)
                    gg=g+1
-                   HB_don2(i,k,gg)=jj-1
+                   HB_don2(i,k,gg)=jj
                    num_HB_don2(i,k)=gg
                 END IF
              END DO
@@ -174,9 +175,9 @@ CONTAINS
        DO j=1,num_Hdon1(i)
           DO k=1,num_HB_don1(i,j)
              num_hbs1=num_hbs1+1
-             salida1(num_hbs1,1)=ind_don1(i)
-             salida1(num_hbs1,2)=ind_Hdon1(i,j)
-             salida1(num_hbs1,3)=HB_don1(i,j,k)
+             salida1(num_hbs1,1)=ind_don1(i)-1
+             salida1(num_hbs1,2)=ind_Hdon1(i,j)-1
+             salida1(num_hbs1,3)=HB_don1(i,j,k)-1
           END DO
        END DO
     END DO
@@ -187,9 +188,9 @@ CONTAINS
        DO j=1,num_Hdon2(i)
           DO k=1,num_HB_don2(i,j)
              num_hbs2=num_hbs2+1
-             salida2(num_hbs2,1)=ind_don2(i)
-             salida2(num_hbs2,2)=ind_Hdon2(i,j)
-             salida2(num_hbs2,3)=HB_don2(i,j,k)
+             salida2(num_hbs2,1)=ind_don2(i)-1
+             salida2(num_hbs2,2)=ind_Hdon2(i,j)-1
+             salida2(num_hbs2,3)=HB_don2(i,j,k)-1
           END DO
        END DO
     END DO
@@ -210,6 +211,7 @@ CONTAINS
     DOUBLE PRECISION,DIMENSION(Ldon1,maxH1,3)::vect_Hdon1
     DOUBLE PRECISION,DIMENSION(Ldon2,maxH2,3)::vect_Hdon2
     DOUBLE PRECISION,DIMENSION(3)::vect_aux,pos_d
+    DOUBLE PRECISION::aux_cos,norm,cos_ang
 
     num_hbs1=0
     num_hbs2=0
@@ -270,7 +272,7 @@ CONTAINS
                    num_hbs1=num_hbs1+1
                    g=num_HB_don1(i,k)
                    gg=g+1
-                   HB_don1(i,k,gg)=jj-1
+                   HB_don1(i,k,gg)=jj
                    num_HB_don1(i,k)=gg
                 END IF
              END DO
@@ -280,7 +282,7 @@ CONTAINS
                    num_hbs1=num_hbs1+1
                    g=num_HB_don1(j,k)
                    gg=g+1
-                   HB_don1(j,k,gg)=ii-1
+                   HB_don1(j,k,gg)=ii
                    num_HB_don1(j,k)=gg
                 END IF
              END DO
@@ -296,9 +298,9 @@ CONTAINS
        DO j=1,num_Hdon1(i)
           DO k=1,num_HB_don1(i,j)
              num_hbs1=num_hbs1+1
-             salida1(num_hbs1,1)=ind_don1(i)
-             salida1(num_hbs1,2)=ind_Hdon1(i,j)
-             salida1(num_hbs1,3)=HB_don1(i,j,k)
+             salida1(num_hbs1,1)=ind_don1(i)-1
+             salida1(num_hbs1,2)=ind_Hdon1(i,j)-1
+             salida1(num_hbs1,3)=HB_don1(i,j,k)-1
           END DO
        END DO
     END DO
@@ -326,7 +328,7 @@ CONTAINS
                    num_hbs2=num_hbs2+1
                    g=num_HB_don1(i,k)
                    gg=g+1
-                   HB_don1(i,k,gg)=jj-1
+                   HB_don1(i,k,gg)=jj
                    num_HB_don1(i,k)=gg
                 END IF
              END DO
@@ -342,9 +344,9 @@ CONTAINS
        DO j=1,num_Hdon1(i)
           DO k=1,num_HB_don1(i,j)
              num_hbs2=num_hbs2+1
-             salida2(num_hbs2,1)=ind_don1(i)
-             salida2(num_hbs2,2)=ind_Hdon1(i,j)
-             salida2(num_hbs2,3)=HB_don1(i,j,k)
+             salida2(num_hbs2,1)=ind_don1(i)-1
+             salida2(num_hbs2,2)=ind_Hdon1(i,j)-1
+             salida2(num_hbs2,3)=HB_don1(i,j,k)-1
           END DO
        END DO
     END DO
@@ -367,7 +369,7 @@ CONTAINS
                    num_hbs3=num_hbs3+1
                    g=num_HB_don2(i,k)
                    gg=g+1
-                   HB_don2(i,k,gg)=jj-1
+                   HB_don2(i,k,gg)=jj
                    num_HB_don2(i,k)=gg
                 END IF
              END DO
@@ -383,9 +385,9 @@ CONTAINS
        DO j=1,num_Hdon2(i)
           DO k=1,num_HB_don2(i,j)
              num_hbs3=num_hbs3+1
-             salida3(num_hbs3,1)=ind_don2(i)
-             salida3(num_hbs3,2)=ind_Hdon2(i,j)
-             salida3(num_hbs3,3)=HB_don2(i,j,k)
+             salida3(num_hbs3,1)=ind_don2(i)-1
+             salida3(num_hbs3,2)=ind_Hdon2(i,j)-1
+             salida3(num_hbs3,3)=HB_don2(i,j,k)-1
           END DO
        END DO
     END DO
@@ -412,7 +414,7 @@ CONTAINS
                    num_hbs4=num_hbs4+1
                    g=num_HB_don2(i,k)
                    gg=g+1
-                   HB_don2(i,k,gg)=jj-1
+                   HB_don2(i,k,gg)=jj
                    num_HB_don2(i,k)=gg
                 END IF
              END DO
@@ -428,9 +430,9 @@ CONTAINS
        DO j=1,num_Hdon2(i)
           DO k=1,num_HB_don2(i,j)
              num_hbs4=num_hbs4+1
-             salida4(num_hbs4,1)=ind_don2(i)
-             salida4(num_hbs4,2)=ind_Hdon2(i,j)
-             salida4(num_hbs4,3)=HB_don2(i,j,k)
+             salida4(num_hbs4,1)=ind_don2(i)-1
+             salida4(num_hbs4,2)=ind_Hdon2(i,j)-1
+             salida4(num_hbs4,3)=HB_don2(i,j,k)-1
           END DO
        END DO
     END DO
