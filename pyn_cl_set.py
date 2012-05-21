@@ -8,7 +8,7 @@ from os import system
 from os import path
 from os import sys
 from pyn_cl_coors import *
-sys.path.append('top_par/')
+sys.path.append('/home/diego/Projects/Pynoramix/backdoor_Water3/top_par/')
 import top_par as tp
 from numpy import *
 import copy
@@ -275,7 +275,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             # Waters
 
             for residue in self.resid[:]:
-                if residue.name in ['HOH','SOL','HO4','water','wat']:
+                if tp.residue_type[residue.name]=='Water':
                     if self.water_model==None:
                         self.water_model='tip'+str(len(residue.list_atoms))+'p'
                     temp_water=cl_water()

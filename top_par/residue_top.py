@@ -107,7 +107,6 @@ covalent_bonds['NAC']=[
 
 ##### WATER:
 
-## NAC:
 residue_atoms['SOL']=[
 'atOW',
 'atHW1',
@@ -118,6 +117,19 @@ covalent_bonds['SOL']=[
 ['atOW'  ,'atHW1' ],
 ['atOW'  ,'atHW2' ]
 ]
+
+residue_atoms['HO4']=[
+'atOW',
+'atHW1',
+'atHW2'
+]
+
+covalent_bonds['HO4']=[
+['atOW'  ,'atHW1' ],
+['atOW'  ,'atHW2' ]
+]
+
+
 
 
 ##### IONS:

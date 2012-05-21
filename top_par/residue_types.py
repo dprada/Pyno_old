@@ -176,6 +176,7 @@ residue_type={
 'SOL'  :   'Water', 
 'WAT'  :   'Water', 
 'HOH'  :   'Water', 
+'HO4'  :   'Water', 
 'OHH'  :   'Water', 
 'TIP'  :   'Water', 
 'T3P'  :   'Water', 
