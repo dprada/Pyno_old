@@ -158,16 +158,16 @@ residue_atoms['ASP']=[
 ]
 
 covalent_bonds['ASP']=[
-['atN'   ,'atH'    ] 
-['atN'   ,'atCA'   ] 
-['atCA'  ,'atHA'   ] 
-['atCA'  ,'atCB'   ] 
-['atCA'  ,'atC'    ] 
-['atCB'  ,'atHB1'  ] 
-['atCB'  ,'atHB2'  ] 
-['atCB'  ,'atCG'   ] 
-['atCG'  ,'atOD1'  ] 
-['atCG'  ,'atOD2'  ] 
+['atN'   ,'atH'    ], 
+['atN'   ,'atCA'   ], 
+['atCA'  ,'atHA'   ], 
+['atCA'  ,'atCB'   ], 
+['atCA'  ,'atC'    ], 
+['atCB'  ,'atHB1'  ], 
+['atCB'  ,'atHB2'  ], 
+['atCB'  ,'atCG'   ], 
+['atCG'  ,'atOD1'  ], 
+['atCG'  ,'atOD2'  ], 
 ['atC'   ,'atO'    ] 
 ]
 
