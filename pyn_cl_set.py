@@ -361,6 +361,13 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                         self.atom[aa].covalent_bonds.append(bb)
                         self.atom[bb].covalent_bonds.append(aa)
 
+            # Charge
+
+            for atom in self.atom[:]:
+                if tp.atom[atom.name] in tp.charge:
+                    atom.charge=tp.charge[tp.atom[atom.name]]
+
+
             # Acceptors-Donors
 
                 # Default:
