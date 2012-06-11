@@ -496,6 +496,8 @@ class molecule(labels_set):               # The suptra-estructure: System (water
     def read_gro (self,name_file):
 
         ## Fixed format taken from http://manual.gromacs.org/online/gro.html
+        # C:   "%5d%5s%5s%5d%8.3f%8.3f%8.3f%8.4f%8.4f%8.4f"
+        # F90: "(i5,2a5,i5,3f8.3,3f8.4)"
 
         ff=open(name_file,'r')
 
