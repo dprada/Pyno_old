@@ -495,6 +495,8 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
     def read_gro (self,name_file):
 
+        ## Fixed format taken from http://manual.gromacs.org/online/gro.html
+
         ff=open(name_file,'r')
 
         line=ff.readline()                                          # Header of the gro file
@@ -503,14 +505,15 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.num_atoms=int(line)
 
         for i in range(self.num_atoms):           
-            
+
             temp_atom=cl_unit()
 
             line=ff.readline().split()
-            temp_atom.pdb_index=int(line[2])
-            temp_atom.name=line[1]
-            temp_atom.resid.name=line[0][-3:]
-            temp_atom.resid.pdb_index=int(line[0][:-3]) 
+
+            temp_atom.pdb_index=int(line[15:20])
+            temp_atom.name=line[10:15].replace(" ", "")
+            temp_atom.resid.name=line[5:10].replace(" ", "")
+            temp_atom.resid.pdb_index=int(line[0:5]) 
 
             temp_atom.index=i           
 
