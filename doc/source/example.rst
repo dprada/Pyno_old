@@ -38,14 +38,14 @@ Ejemplo 2
 - Thing.
 - Different.
 
-H2 -- Page Sections
+Page Sections
 ===================
 
 Ejemplos de formato:
 
 **bold** and *italics*
 
-H2 -- Marking paragraphs
+Marking paragraphs
 ========================
 
 This is a statement.

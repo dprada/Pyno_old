@@ -13,6 +13,7 @@ Contents:
 
    getting_started.rst
    installing_pyno.rst
+   networks.rst
    example.rst
 
 Indices and tables
