@@ -3,6 +3,39 @@ MODULE funcs
 CONTAINS
 
 
+SUBROUTINE EVOLUTION_STEP(T_start,T_ind,T_tau,vect_in,N_nodes,Ktot,vect_out)
+
+  IMPLICIT NONE
+
+  INTEGER,INTENT(IN)::N_nodes,Ktot
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  
+  DOUBLE PRECISION,DIMENSION(N_nodes),INTENT(IN)::vect_in
+  DOUBLE PRECISION,DIMENSION(N_nodes),INTENT(OUT)::vect_out
+  INTEGER,DIMENSION(N_nodes)::Pe
+
+  INTEGER::i,j,ii,jj
+  
+  Pe=0
+  vect_out=0.0d0
+
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
+
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        jj=T_ind(j)
+        vect_out(jj)=vect_out(jj)+((T_tau(j)*1.0d0)/(Pe(i)*1.0d0))*vect_in(i)
+     END DO
+  END DO
+
+END SUBROUTINE EVOLUTION_STEP
+
+
 SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
 
   IMPLICIT NONE

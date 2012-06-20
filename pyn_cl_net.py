@@ -17,6 +17,14 @@ class cl_node():
         self.cluster=0
         self.coors=[]
 
+    def most_weighted_links(self,length=1):
+        aux_bak=[[self.link[x],x] for x in self.link.keys()]
+        aux_bak.sort(reverse=True)
+        most_w_destin=[]
+        for ii in range(length):
+            most_w_destin.append(aux_bak[ii][1])
+        return most_w_destin
+
 class cl_cluster():
 
     def __init__(self):
@@ -30,9 +38,9 @@ class cl_cluster():
 
 class cl_net():
 
-    def __init__(self,file_net=None,file_keys=None,verbose=True):
+    def __init__(self,file_net=None,file_keys=None,directed=True,verbose=True):
 
-        self.init_net()
+        self.init_net(directed)
 
         if file_net!=None:
             self.read_net(file_net)
@@ -44,8 +52,9 @@ class cl_net():
 
         return
 
-    def init_net(self):
+    def init_net(self,directed):
 
+        self.directed=directed
         self.num_nodes=0
         self.num_links=0
         self.num_clusters=0
@@ -62,7 +71,7 @@ class cl_net():
         self.weight=0
         self.labels={}
         self.clustering_method=' '
-
+        self.directed=directed
 
         self.file_net=None
         self.file_keys=None
@@ -77,10 +86,53 @@ class cl_net():
         print '# Network:'
         print '#', self.num_nodes, 'nodes'
         print '#', self.k_total, 'links out'
-        print '#', self.k_max, 'max. conectivity out'
         print '#', self.weight, 'total weight nodes'
 
 
+    def add_node(self, new_node, weight=0):
+
+        node=cl_node()
+        node.label=str(new_node)
+        if weight!=0:
+            node.weight=weight
+            self.weight+=weight
+        new_ind=len(self.node)
+        self.node.append(node)
+        self.labels[node.label]=new_ind
+        self.num_nodes=new_ind+1
+
+        return
+
+    def add_link(self,node_origin,node_final,weight=0):
+
+        v=[]
+        for aa in [node_origin,node_final]:
+            try:
+                ind=self.labels[str(aa)]
+            except:
+                ind=self.num_nodes
+                bb=self.add_node(aa)
+            v.append(ind)
+
+        if self.directed :
+            try:
+                self.node[v[0]].link[v[1]]+=weight
+            except:
+                self.node[v[0]].link[v[1]]=weight
+                self.node[v[0]].k_out+=1
+                self.node[v[1]].k_in+=1
+                self.k_out+=1
+                self.k_total+=1
+        else:
+            try:
+                self.node[v[1]].link[v[0]]+=weight
+            except:
+                self.node[v[1]].link[v[0]]=weight
+                self.node[v[1]].k_out+=1
+                self.node[v[0]].k_in+=1
+                self.k_out+=1
+                self.k_total+=1
+        pass
 
     def read_net(self,name_file):
 
@@ -201,6 +253,15 @@ class cl_net():
         db_dist=f_net.funcs.detailed_balance_distance(p,self.T_start,self.T_ind,self.T_weight,self.num_nodes,self.k_total)
 
         return db_dist
+
+    def evolution_step(self,vect_in):
+
+        if self.Ts==False:
+            self.build_Ts()
+
+        vect_out=f_net.funcs.evolution_step(self.T_start,self.T_ind,self.T_weight,vect_in,self.num_nodes,self.k_total)
+
+        return vect_out
 
     def symmetrize(self,new_net=False,verbose=True):
 
