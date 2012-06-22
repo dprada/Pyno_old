@@ -35,6 +35,106 @@ SUBROUTINE EVOLUTION_STEP(T_start,T_ind,T_tau,vect_in,N_nodes,Ktot,vect_out)
 
 END SUBROUTINE EVOLUTION_STEP
 
+SUBROUTINE BROWNIAN_RUN (T_start,T_ind,T_tau,iseed,node_alpha,length,N_nodes,Ktot,vect_out)
+
+  IMPLICIT NONE
+
+  INTEGER,INTENT(IN)::N_nodes,Ktot,length
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  INTEGER,DIMENSION(4),INTENT(IN)::iseed
+  INTEGER,INTENT(IN)::node_alpha
+  INTEGER,DIMENSION(length+1),INTENT(OUT)::vect_out
+
+  INTEGER,DIMENSION(N_nodes)::Pe
+  INTEGER,DIMENSION(4)::hseed
+  INTEGER::place
+  DOUBLE PRECISION::dice,bandera
+
+  INTEGER::i,j
+
+  hseed=iseed
+
+  Pe=0
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
+
+  vect_out=0
+  place=node_alpha+1
+  vect_out(1)=0
+
+  DO j=2,length+1
+
+     CALL dlarnv(1,hseed,1,dice)
+     dice=dice*Pe(place)
+     
+     bandera=0.0d0
+     DO i=T_start(place)+1,T_start(place+1)
+        bandera=bandera+T_tau(i)
+        IF (dice<=bandera) THEN
+           place=T_ind(i)
+           exit
+        END IF
+     END DO
+
+     vect_out(j)=place-1
+     
+  END DO
+
+END SUBROUTINE BROWNIAN_RUN
+
+SUBROUTINE BROWNIAN_RUN_FPT (T_start,T_ind,T_tau,iseed,node_alpha,node_omega,N_nodes,Ktot,steps)
+
+  IMPLICIT NONE
+
+  INTEGER,INTENT(IN)::N_nodes,Ktot
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  INTEGER,DIMENSION(4),INTENT(IN)::iseed
+  INTEGER,INTENT(IN)::node_alpha,node_omega
+  INTEGER,INTENT(OUT)::steps
+
+  INTEGER,DIMENSION(N_nodes)::Pe
+  INTEGER,DIMENSION(4)::hseed
+  INTEGER::place,omega
+  DOUBLE PRECISION::dice,bandera
+
+  INTEGER::i,j
+
+  hseed=iseed
+
+  Pe=0
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
+
+  place=node_alpha+1
+  omega=node_omega+1
+  
+  steps=0
+  DO WHILE (place/=omega)
+     steps=steps+1
+     CALL dlarnv(1,hseed,1,dice)
+     dice=dice*Pe(place)
+     
+     bandera=0.0d0
+     DO i=T_start(place)+1,T_start(place+1)
+        bandera=bandera+T_tau(i)
+        IF (dice<=bandera) THEN
+           place=T_ind(i)
+           exit
+        END IF
+     END DO
+     
+  END DO
+
+END SUBROUTINE BROWNIAN_RUN_FPT
+
 
 SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
 
@@ -1131,4 +1231,4 @@ END MODULE funcs
 
 
 !! f2py --f90flags='-fast' -c -m pyn_fort_net pyn_fort_net.f90
-!!f2py -c -m pyn_fort_net pyn_fort_net.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread
+!!f2py --f90flags='-fast' -c -m pyn_fort_net pyn_fort_net.f90 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_def -lpthread

@@ -1,5 +1,6 @@
 from numpy import *
 import pyn_fort_net as f_net
+import pyn_math as pymath
 import copy
 
 #####################################################################################
@@ -13,6 +14,7 @@ class cl_node():
         self.link={}
         self.k_out=0
         self.k_in=0
+        self.k=0
         self.weight=0
         self.cluster=0
         self.coors=[]
@@ -244,6 +246,88 @@ class cl_net():
             self.labels[mss]=index
             self.node[index].label=mss
             
+
+    def k_distribution (self, option='out', bins=20, segment=None, delta_x=None,norm=None):
+
+        """ option=['total','in','out']"""
+
+        for ii in self.node:
+            ii.k_out=len(ii.link)
+
+        scratch=[]
+        if option=='out':
+            for ii in self.node:
+                scratch.append(ii.k_out)
+
+        xx,yy=pymath.histogram(scratch,bins,segment,delta_x,None,norm,plot=False)
+
+        return xx, yy
+
+    def weight_distribution (self, option='all', bins=20, segment=None, delta_x=None,norm=None):
+
+        """option=['all','self_links','all-self_links','links']  (I have to do the same for the links of a node)"""
+
+        scratch=[]
+        if option=='all':
+            for ii in self.node:
+                scratch.append(ii.weight)
+                
+        if option=='self_links':
+            for ii in range(self.num_nodes):
+                scratch.append(self.node[ii].link[ii])
+
+        if option=='all-self_links':
+            for ii in range(self.num_nodes):
+                scratch.append(self.node[ii].weight-self.node[ii].link[ii])
+
+        xx,yy=pymath.histogram(scratch,bins,segment,delta_x,None,norm,plot=False)
+        
+        return xx, yy
+
+    def fpt (self, node_origin, node_sink, num_runs=200, option='mean', bins=20, segment=None, delta_x=None,norm=None):
+
+        """option=['mean','distribution','both','raw']"""
+
+        if self.Ts==False :
+
+            self.build_Ts()
+
+        scratch=[]
+        for ii in range(num_runs):
+            iseed=random.random_integers(0,4094,4)
+            iseed[3]=(iseed[3]/2)*2+1
+            aa=f_net.funcs.brownian_run_fpt(self.T_start,self.T_ind,self.T_weight,iseed,node_origin,node_sink,self.num_nodes,self.k_total)
+            scratch.append(aa)
+
+        if option in ['distribution','both']:
+            xx,yy=pymath.histogram(scratch,bins,segment,delta_x,None,norm,plot=False)
+
+        if option in ['mean','both']:
+            yy_av,yy_sigma=pymath.average(scratch)
+
+        if option=='distribution': return xx,yy
+        if option=='mean': return yy_av, yy_sigma
+        if option=='both': return yy_av, yy_sigma, xx,yy
+        if option=='raw':  return scratch
+
+        pass
+
+    def brownian_walker (self,node_origin,length):
+
+        if self.Ts==False :
+            self.build_Ts()
+
+        iseed=random.random_integers(0,4094,4)
+        iseed[3]=(iseed[3]/2)*2+1
+        scratch=f_net.funcs.brownian_run(self.T_start,self.T_ind,self.T_weight,iseed,node_origin,length,self.num_nodes,self.k_total)
+
+        return scratch
+
+    def min_distance (self):
+
+        pass
+
+
     def detailed_balance_distance(self,p=1.000):
 
         if self.Ts==False :
@@ -372,11 +456,23 @@ class cl_net():
 
     def cfep_pfold(self,A=0,B=0,num_bins=1000):
 
+        """ Tengo que comprobar esta funcion"""
+
         A=A+1
         B=B+1
         self.cfep,self.key_cfep1,self.key_cfep2=f_net.funcs.cfep_pfold(A,B,self.T_ind,self.T_weight,self.T_start,num_bins,self.num_nodes,self.k_total)
 
+    def dijkstra(self):
 
+        pass
+
+    def mds(self):
+
+        pass
+
+    def mcl(self):
+
+        pass
 
 #### External Functions
 
