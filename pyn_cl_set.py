@@ -294,8 +294,6 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                             temp_water.O.index=atom.index
                             temp_water.O.pdb_index=atom.pdb_index
                             temp_water.O.name=atom.name
-                            temp_water.H1=None
-                            temp_water.H2=None
                         if tp.atom[atom.name] in ['atHW1','atHW2']:
                             atom.polar_class='donor'
                             atom.polarizability=True
