@@ -138,6 +138,7 @@ class cl_water(labels_set):             # Attributes of a water molecule
         self.H1=labels_unit()
         self.H2=labels_unit()
         self.uvect_norm=[]
+        self.microstate=''
         #def get_uvect_norm(self):
         
         pass
@@ -287,31 +288,25 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
                     for ii in residue.list_atoms:
                         atom=self.atom[ii]
-                        if atom.name in ['OW']:
+                        if tp.atom[atom.name] in ['atOW']:
                             atom.polar_class='acceptor'
                             atom.polarizability=True
                             temp_water.O.index=atom.index
                             temp_water.O.pdb_index=atom.pdb_index
-                            temp_water.O.name='OW'
-                        if atom.name in ['O']:
-                            atom.polar_class='acceptor'
-                            atom.polarizability=True
-                            temp_water.O.index=atom.index
-                            temp_water.O.pdb_index=atom.pdb_index
-                            temp_water.O.name='O'
+                            temp_water.O.name=atom.name
                             temp_water.H1=None
                             temp_water.H2=None
-                        if atom.name in ['HW1','HW2']:
+                        if tp.atom[atom.name] in ['atHW1','atHW2']:
                             atom.polar_class='donor'
                             atom.polarizability=True
-                            if atom.name in ['HW1']:
+                            if tp.atom[atom.name] in ['atHW1']:
                                 temp_water.H1.index=atom.index
                                 temp_water.H1.pdb_index=atom.pdb_index
-                                temp_water.H1.name='HW1'
-                            elif atom.name in ['HW2']:
+                                temp_water.H1.name=atom.name
+                            elif tp.atom[atom.name] in ['atHW2']:
                                 temp_water.H2.index=atom.index
                                 temp_water.H2.pdb_index=atom.pdb_index
-                                temp_water.H2.name='HW2'
+                                temp_water.H2.name=atom.name
 
                     self.water.append(temp_water)
 
@@ -366,7 +361,6 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             for atom in self.atom[:]:
                 if tp.atom[atom.name] in tp.charge:
                     atom.charge=tp.charge[tp.atom[atom.name]]
-
 
             # Acceptors-Donors
 
@@ -502,10 +496,6 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
     def read_gro (self,name_file):
 
-        ## Fixed format taken from http://manual.gromacs.org/online/gro.html
-        # C:   "%5d%5s%5s%5d%8.3f%8.3f%8.3f%8.4f%8.4f%8.4f"
-        # F90: "(i5,2a5,i5,3f8.3,3f8.4)"
-
         ff=open(name_file,'r')
 
         line=ff.readline()                                          # Header of the gro file
@@ -514,10 +504,12 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         self.num_atoms=int(line)
 
         for i in range(self.num_atoms):           
+            
+            ## Fixed format taken from http://manual.gromacs.org/online/gro.html
 
             temp_atom=cl_unit()
 
-            line=ff.readline().split()
+            line=ff.readline()
 
             temp_atom.pdb_index=int(line[15:20])
             temp_atom.name=line[10:15].replace(" ", "")

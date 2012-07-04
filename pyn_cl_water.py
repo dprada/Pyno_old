@@ -197,7 +197,7 @@ def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00
         
 
 
-class kinetic_network(cl_net):
+class kinetic_network(net):
     
     def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True):
 

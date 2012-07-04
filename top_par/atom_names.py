@@ -140,6 +140,10 @@ atom={
 'MW'   : 'atvir'  ,
 'LP1'  : 'atvir'  ,
 'LP2'  : 'atvir'  ,
+'H1'   : 'atHW1'  ,
+'H2'   : 'atHW2'  ,
+'OM'   : 'atvir'  ,
+'DOH2' : 'atvir'  ,
 
 ## Ions
 'NA'    :  'itNA' ,

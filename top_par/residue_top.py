@@ -858,6 +858,22 @@ covalent_bonds['HO5']=[
 ]
 
 
+### SWM:
+
+residue_atoms['SWM']=[
+'atOW',
+'atHW1',
+'atHW2',
+'atvir',
+'atvir'
+]
+
+covalent_bonds['SWM']=[
+['atOW'  ,'atHW1' ],
+['atOW'  ,'atHW2' ]
+]
+
+
 ##### IONS:
 
 ## NA:
