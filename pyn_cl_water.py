@@ -154,7 +154,9 @@ def skinner_parameter(system=None,index_wat_o=None,index_wat_h=None,index_h=None
 
 
 
-def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0):
+def mss_water (system=None,output_array=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True):
+
+    """output_array=['None','microstates','indexes_waters'] """
 
     if system==None:
         print 'Error: input variables needed'
@@ -185,22 +187,210 @@ def mss_water (system=None,index_waters=False,definition='Skinner',sk_param=0.00
 
     # Analysis:
 
-    if index_waters :
+    if output_array=='indexes_waters' :
         mss=f_water.microstates.microstates_box_ind_wat(system.num_waters)
     else :
         mss=f_water.microstates.microstates_box(system.num_waters)
+        for ii in range(system.num_waters):
+            label=str(mss[ii][0])+' |'
+            for jj in range(1,5):
+                label+=' '+str(mss[ii][jj])
+            label+=' |'
+            for jj in range(5,8):
+                label+=' '+str(mss[ii][jj])
+            label+=' |'
+            for jj in range(8,11):
+                label+=' '+str(mss[ii][jj])
+            label+=' |'
+            for jj in range(11,14):
+                label+=' '+str(mss[ii][jj])
+            label+=' |'
+            for jj in range(14,17):
+                label+=' '+str(mss[ii][jj])
+            system.water[ii].microstate=label
+        if verbose: print "# Water microstates updated"
     
     # Deallocating Fortran Memory:
     f_water.main.free_coors_memory()
 
-    return mss
+    if output_array in ['indexes_waters','microstates']:
+        return mss
+    else:
+        pass
         
 
+### Private methods for the code:
 
-class kinetic_network(net):
+def coors2fortran(system,frame=None):
+
+    f_water.main.lbox[:,:]=system.frame[frame].box[:,:]
+
+    for jj in range(system.num_waters):
+        f_water.main.xarr[jj,0,:]=system.frame[frame].coors[system.water[jj].O.index,:]
+        f_water.main.xarr[jj,1,:]=system.frame[frame].coors[system.water[jj].H1.index,:]
+        f_water.main.xarr[jj,2,:]=system.frame[frame].coors[system.water[jj].H2.index,:]
+        
+    pass
+
+
+###class kinetic_network(network):
+###    
+###    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True,optimize=None,memory=1):
+###        """ optimize=[None,Disk,RAM], memory=x*Gb"""
+### 
+###        if optimize in ['RAM','Disk']:
+###            l_frames=int((1073741824*float(memory))/(17*4*self.num_waters*1.0)) # 1Gb= 1073741824, 4 each integer 
+### 
+###
+###        if system==None or file_traj==None or begin==None or end==None:
+###            print 'Error: input variables needed'
+###            print 'kinetic_network(system=None,file_traj=None,begin=None,end=None)'
+###            return None
+### 
+###        # Setting up the hbond definition:
+### 
+###        f_water.hbonds.hb_def=hbonds_type(definition,verbose=False)
+###        if f_water.hbonds.hb_def == 0 : return
+###        if f_water.hbonds.hb_def == 1 : f_water.hbonds.sk_param=sk_param
+###        if f_water.hbonds.hb_def == 2 : f_water.hbonds.roh_param= roh_param
+###        if f_water.hbonds.hb_def == 3 : f_water.hbonds.roo_param, f_water.hbonds.cos_angooh_param= roo_param, cos(radians(angooh_param))
+###        if f_water.hbonds.hb_def == 4 : pass
+###        if f_water.hbonds.hb_def == 5 : pass
+###        if f_water.hbonds.hb_def == 6 : f_water.hbonds.cos_angooh_param= cos(radians(angooh_param))
+###        if f_water.hbonds.hb_def == 7 : pass
+### 
+###        # Frame to be analysed:
+### 
+###        system.last_frame=begin
+### 
+###        # Setting up the fortran variables:
+### 
+###        f_water.main.list_neighbours=0     # Optimization for hbonds=False for the first frame
+### 
+###        f_water.main.nw=system.num_waters
+###        f_water.main.initialize_coors_memory()
+### 
+### 
+###        ####### INITIALIZE NET#####
+###        nodes_ant=[0 for ii in range(system.num_waters)]
+### 
+###        num_nodes=-1
+### 
+###        self=network(verbose=False)
+###        self.file_traj=file_traj
+### 
+###        ####### INITIALIZE NET#####
+### 
+###        ###################################### first frame
+###        system.delete_coors()
+###        system.load_coors(file_traj)
+### 
+###        f_water.main.lbox[:,:]=system.frame[0].box[:,:]
+###        
+###        for jj in range(system.num_waters):
+###            f_water.main.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+###            f_water.main.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+###            f_water.main.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+### 
+### 
+###        mss=f_water.microstates.microstates_box(system.num_waters)
+###  
+###        ###### NET: 1ST FRAME NODES ########
+###        for jj in range(system.num_waters):
+###            aa=str(mss[jj])
+###            try:
+###                nodes_ant[jj]=self.labels[aa]
+###            except:
+###                num_nodes+=1
+###                self.labels[aa]=num_nodes
+###                nodes_ant[jj]=num_nodes
+###                temp=cl_node()
+###                temp.label=aa
+###                self.node.append(temp)
+### 
+###        ###### NET: 1ST FRAME NODES ########
+### 
+###        system.delete_coors()
+###        
+###        ###################################### Remaining frames
+### 
+###        for ii in range(begin+1,end+1):
+### 
+###            system.load_coors(file_traj)
+### 
+###            f_water.main.lbox[:,:]=system.frame[0].box[:,:]
+###            
+###            for jj in range(system.num_waters):
+###                f_water.main.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
+###                f_water.main.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
+###                f_water.main.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+### 
+###            mss=f_water.microstates.microstates_box(system.num_waters)
+### 
+###            ###### NET: FRAME NODES ########
+###            for jj in range(system.num_waters):
+###                bb=str(mss[jj])
+###                dd=nodes_ant[jj]
+###                try:
+###                    cc=self.labels[bb]
+###                    try:
+###                        self.node[dd].link[cc]+=1
+###                    except:
+###                        self.node[dd].link[cc]=1
+###                    nodes_ant[jj]=cc
+###                except:
+###                    num_nodes+=1
+###                    self.labels[bb]=num_nodes
+###                    temp=cl_node()
+###                    temp.label=bb
+###                    self.node.append(temp)
+###                    self.node[dd].link[num_nodes]=1
+###                    nodes_ant[jj]=num_nodes
+### 
+###            ###### NET: FRAME NODES ########
+### 
+###            system.delete_coors()
+###            
+### 
+###            
+###        ################################################# END
+### 
+###        f_water.main.free_coors_memory()
+### 
+###        self.num_nodes=len(self.node)
+###        self.num_links=0
+###        self.weight=0
+###        self.k_max=0
+###        for ii in range(self.num_nodes):
+###            self.node[ii].k_out=len(self.node[ii].link)
+###            self.node[ii].weight=sum(self.node[ii].link.values())
+###            self.num_links+=self.node[ii].k_out
+###            self.weight+=self.node[ii].weight
+###            if (self.k_max<self.node[ii].k_out): 
+###                self.k_max=self.node[ii].k_out
+###        self.k_total=self.num_links
+### 
+###        self.build_Ts()
+### 
+###        if verbose:
+###            self.info()
+### 
+###        return 
+        
+
+class kinetic_network(network):
     
-    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True):
+    def __init__(self,system=None,file_traj=None,begin=None,end=None,definition='Skinner',sk_param=0.00850,roh_param=2.3000,roo_param=3.5,angooh_param=30.0,verbose=True,optimize=None,memory=1):
+        """ optimize=[None,Disk,RAM], memory=x*Gb"""
 
+        if optimize in ['RAM','Disk']:
+            l_frames=int((1073741824*float(memory))/(17*4*system.num_waters*1.0)) # 1Gb= 1073741824, 4 each integer
+            print l_frames
+            f_net.funcs.num_frames=l_frames
+            f_net.funcs.num_parts=1024
+            f_net.funcs.dim_mss=17
+            f_net.funcs.init_traj_mss_2_net()
+            return
 
 
         if system==None or file_traj==None or begin==None or end==None:
@@ -237,7 +427,7 @@ class kinetic_network(net):
 
         num_nodes=-1
 
-        self.init_net()
+        self=network(verbose=False)
         self.file_traj=file_traj
 
         ####### INITIALIZE NET#####
@@ -246,13 +436,7 @@ class kinetic_network(net):
         system.delete_coors()
         system.load_coors(file_traj)
 
-        f_water.main.lbox[:,:]=system.frame[0].box[:,:]
-        
-        for jj in range(system.num_waters):
-            f_water.main.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-            f_water.main.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-            f_water.main.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
-
+        coors2fortran(system,frame=0)
 
         mss=f_water.microstates.microstates_box(system.num_waters)
   
@@ -262,14 +446,7 @@ class kinetic_network(net):
             try:
                 nodes_ant[jj]=self.labels[aa]
             except:
-                num_nodes+=1
-                self.labels[aa]=num_nodes
-                nodes_ant[jj]=num_nodes
-                temp=cl_node()
-                temp.label=aa
-                self.node.append(temp)
-
-        ###### NET: 1ST FRAME NODES ########
+                nodes_ant[jj]=self.add_node(aa,iout=True)
 
         system.delete_coors()
         
@@ -279,36 +456,12 @@ class kinetic_network(net):
 
             system.load_coors(file_traj)
 
-            f_water.main.lbox[:,:]=system.frame[0].box[:,:]
-            
-            for jj in range(system.num_waters):
-                f_water.main.xarr[jj,0,:]=system.frame[0].coors[system.water[jj].O.index,:]
-                f_water.main.xarr[jj,1,:]=system.frame[0].coors[system.water[jj].H1.index,:]
-                f_water.main.xarr[jj,2,:]=system.frame[0].coors[system.water[jj].H2.index,:]
+            coors2fortran(system,frame=0)
 
             mss=f_water.microstates.microstates_box(system.num_waters)
 
-            ###### NET: FRAME NODES ########
             for jj in range(system.num_waters):
-                bb=str(mss[jj])
-                dd=nodes_ant[jj]
-                try:
-                    cc=self.labels[bb]
-                    try:
-                        self.node[dd].link[cc]+=1
-                    except:
-                        self.node[dd].link[cc]=1
-                    nodes_ant[jj]=cc
-                except:
-                    num_nodes+=1
-                    self.labels[bb]=num_nodes
-                    temp=cl_node()
-                    temp.label=bb
-                    self.node.append(temp)
-                    self.node[dd].link[num_nodes]=1
-                    nodes_ant[jj]=num_nodes
-
-            ###### NET: FRAME NODES ########
+                aa,nodes_ant[jj]=self.add_link(nodes_ant[jj],str(mss[jj]),weight=1,index_origin=True,iout=True)
 
             system.delete_coors()
             
@@ -318,39 +471,16 @@ class kinetic_network(net):
 
         f_water.main.free_coors_memory()
 
-        self.num_nodes=len(self.node)
-        self.num_links=0
-        self.weight=0
-        self.k_max=0
-        for ii in range(self.num_nodes):
-            self.node[ii].k_out=len(self.node[ii].link)
-            self.node[ii].weight=sum(self.node[ii].link.values())
-            self.num_links+=self.node[ii].k_out
-            self.weight+=self.node[ii].weight
-            if (self.k_max<self.node[ii].k_out): 
-                self.k_max=self.node[ii].k_out
-        self.k_total=self.num_links
+        # Computing weight nodes:
+        for ii in self.node:
+            ii.weight=sum(ii.link.values())
 
-        self.build_Ts()
 
-        if verbose:
-            self.info()
+        self.info(update=True,verbose=verbose)
 
         return 
         
 
-### Private methods for the code:
-
-def __coors2fortran(system,frame=None):
-
-    f_water.main.lbox[:,:]=system.frame[frame].box[:,:]
-
-    for jj in range(system.num_waters):
-        f_water.main.xarr[jj,0,:]=system.frame[frame].coors[system.water[jj].O.index,:]
-        f_water.main.xarr[jj,1,:]=system.frame[frame].coors[system.water[jj].H1.index,:]
-        f_water.main.xarr[jj,2,:]=system.frame[frame].coors[system.water[jj].H2.index,:]
-
-    return
     
 
 

@@ -44,6 +44,10 @@ class cl_coors:
                 self.read_trr(file_traj,frame)
                 if file_traj.status=='END': return
 
+            if self.file.endswith('dcd'):
+                self.read_dcd(file_traj,frame)
+                if file_traj.status=='END': return
+
             self.coors=array(self.coors,order='Fortran')
         
             if self.file.endswith('bin') or self.file.endswith('gro') or self.file.endswith('xtc'):

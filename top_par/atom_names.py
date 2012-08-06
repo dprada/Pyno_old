@@ -115,7 +115,7 @@ atom={
 'NZ'   : 'atNZ'   ,
 'O'    : 'atO'    ,
 'O1'   : 'atO1'   ,
-'O2'   : 'atO2'   ,
+#'O2'   : 'atO2'   ,
 'OD1'  : 'atOD1'  ,
 'OD2'  : 'atOD2'  ,
 'OE1'  : 'atOE1'  ,
@@ -129,6 +129,7 @@ atom={
 'OT2'  : 'atOT2'  ,    # terminal charmm.pdb
 'OC1'  : 'atOT1'  ,    # terminal .pdb
 'OC2'  : 'atOT2'  ,    # terminal .pdb
+'OXT'  : 'atOXT'  ,    # terminal
 'SD'   : 'atSD'   ,
 'SG'   : 'atSG'   ,
 
@@ -239,6 +240,7 @@ atom_nature={
 'atOH'  : 'O'   , 
 'atOT1' : 'O'   , 
 'atOT2' : 'O'   , 
+'atOTX' : 'O'   , 
 'atSD'  : 'S'   , 
 'atSG'  : 'S'   , 
 

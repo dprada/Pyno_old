@@ -171,6 +171,44 @@ covalent_bonds['ASP']=[
 ['atC'   ,'atO'    ] 
 ]
 
+### GLU:
+
+residue_atoms['GLU']=[
+'atN',
+'atH',
+'atCA',
+'atHA',
+'atCB',
+'atHB1', 
+'atHB2', 
+'atCG',
+'atHG1', 
+'atHG2', 
+'atCD',
+'atOE1', 
+'atOE2', 
+'atC',
+'atO'
+]
+
+covalent_bonds['GLU']=[
+['atN'   , 'atH'   ], 
+['atN'   , 'atCA'  ], 
+['atCA'  , 'atHA'  ], 
+['atCA'  , 'atCB'  ], 
+['atCA'  , 'atC'   ], 
+['atCB'  , 'atHB1' ], 
+['atCB'  , 'atHB2' ], 
+['atCB'  , 'atCG'  ], 
+['atCG'  , 'atHG1' ], 
+['atCG'  , 'atHG2' ], 
+['atCG'  , 'atCD'  ], 
+['atCD'  , 'atOE1' ], 
+['atCD'  , 'atOE2' ], 
+['atC'   , 'atO'   ] 
+]
+
+
 ### GLN:
 
 residue_atoms['GLN']=[
@@ -233,9 +271,12 @@ covalent_bonds['GLY']=[
 ['atC'   , 'atO'   ] 
 ]
 
-### HISD:
+### HISE (ND1 no H, NE2 with H),
+### HISD (ND1 with H, NE2 no H),
+### HISH (ND1 with H, NE2 with H),
+### All included in HIS:
 
-residue_atoms['HISD']=[
+residue_atoms['HIS']=[
 'atN',
 'atH',
 'atCA',
@@ -251,11 +292,12 @@ residue_atoms['HISD']=[
 'atCE1', 
 'atHE1', 
 'atNE2', 
+'atHE2', 
 'atC',
 'atO'
 ]
 
-covalent_bonds['HISD']=[
+covalent_bonds['HIS']=[
 ['atN'   ,'atH'    ], 
 ['atN'   ,'atCA'   ], 
 ['atCA'  ,'atHA'   ], 
@@ -272,8 +314,10 @@ covalent_bonds['HISD']=[
 ['atCD2' ,'atNE2'  ], 
 ['atCE1' ,'atHE1'  ], 
 ['atCE1' ,'atNE2'  ], 
+['atNE2' ,'atHE2'  ], 
 ['atC'   ,'atO'    ] 
 ]
+
 
 ### ILE:
 

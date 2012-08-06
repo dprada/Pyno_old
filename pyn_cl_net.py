@@ -7,19 +7,149 @@ import copy
 ##### Networks
 #####################################################################################
 
-class cl_node():
+class cl_io():
 
     def __init__(self):
+
+        self.v={}
+        self.reset_H1()
+        self.reset_H2()
+        pass
+    
+    def reset_H1(self):
+        
+        self.v['num_nodes']=0
+        self.v['with_index']=False
+        self.v['directed']=False
+        self.v['kinetic']=False
+
+    def reset_H2(self):
+
+        self.l=[]
+        self.v['num_fields']=0
+        self.v['with_node1']=False
+        self.v['with_links']=False
+        self.v['with_weight']=False
+        self.v['with_coors']=False
+        self.v['with_cluster']=False
+        self.v['with_color']=False
+        self.v['with_size']=False
+
+        self.v['node1']=0
+        self.v['node2']=0
+        self.v['weight']=0
+        self.v['cluster']=0
+        self.v['coorx']=0.00
+        self.v['coory']=0.00
+        self.v['coorz']=0.00
+        self.v['color']=''
+        self.v['size']=0.00
+
+
+    def read_H1(self,line):
+        line=line.replace('@',''); line=line.replace(',',' ')
+        line=line.split()
+        for field in line:
+            att,opt=field.split('=')
+            if att in ['directed','with_index','kinetic']:
+                if opt in ['True','true']:
+                    self.v[att]=True
+                elif opt in ['False','false']:
+                    self.v[att]=False
+                else:
+                    raise Exception('#Error in attribute of network: '+opt)
+            elif att in ['num_nodes']:
+                self.v[att]=int(opt)
+            else:
+                raise Exception('# Option in file not recognized: '+att)
+
+
+    def read_H2(self,line):
+        self.reset_H2()
+        line=line.replace('#','')
+        line=line.split()
+        self.v['num_fields']=len(line)
+        for ind in range(self.v['num_fields']):
+            if line[ind] == 'node':
+                if self.v['with_node1']:
+                    self.l.append('node2')
+                    self.v['node2']=ind
+                    self.v['with_links']=True
+                else:
+                    self.l.append('node1')
+                    self.v['node1']=ind
+                    self.v['with_node1']=True
+            elif line[ind] in self.v.keys():
+                self.v[line[ind]]=ind
+                self.l.append(line[ind])
+                if line[ind] in ['coorx','coory','coorz']: self.v['with_coors']=True
+                if line[ind] in ['cluster']: self.v['with_cluster']=True
+                if line[ind] in ['color']: self.v['with_color']=True
+                if line[ind] in ['size']: self.v['with_size']=True
+                if line[ind] in ['weight']: self.v['with_weight']=True
+
+    def read_line(self,line):
+        
+        line=line.split()
+        if len(line)==self.v['num_fields']:
+            control=True
+            for ind in range(self.v['num_fields']):
+                self.v[self.l[ind]]=line[ind]
+            if self.v['with_index']: 
+                self.v['node1']=int(self.v['node1'])
+                self.v['node2']=int(self.v['node2'])
+            if self.v['with_weight']:
+                self.v['weight']=float(self.v['weight'])
+            if self.v['with_cluster']: self.v['cluster']=int(self.v['cluster'])
+            if self.v['with_size']: self.v['size']=float(self.v['size'])
+            if self.v['with_coors']:
+                self.v['coorx']=float(self.v['coorx'])
+                self.v['coory']=float(self.v['coory'])
+                self.v['coorz']=float(self.v['coorz'])
+        else:
+            control=False
+
+        return control
+
+class cl_node():
+    """ Fundamental unit to constitute a network together with links.
+
+        Attr:
+               label   [string] :    label or key
+               weight  [int]    :    weight
+               link    [dict]   :    
+
+    """
+    def __init__(self):
+#        """Attributes:
+#        
+#           label[string]: label or key
+#           weight[int]: weight
+#           
+#        """
         self.label=''
         self.link={}
+        self.alt_link={}
         self.k_out=0
         self.k_in=0
         self.k=0
         self.weight=0
         self.cluster=0
+        self.component=0
         self.coors=[]
+        self.color=''
+        self.size=''
 
     def most_weighted_links(self,length=1):
+        """ Indexes **of** the ranked N most weighted links.
+        
+        :param length: number of links
+        :type length: integer
+        :return: array of node indexes
+        :rtype: list
+
+        .. **note** :: Esto es una nota
+        """
         aux_bak=[[self.link[x],x] for x in self.link.keys()]
         aux_bak.sort(reverse=True)
         most_w_destin=[]
@@ -30,222 +160,547 @@ class cl_node():
 class cl_cluster():
 
     def __init__(self):
+        """Attributes of a cluster or community
+        Args:
+            Name blabla
+
+        Returns:
+           Bla bla bla
+        """
         self.label=''
         self.link={}
+        self.alt_link={}
         self.nodes=[]
         self.num_nodes=0
         self.weight=0
         self.k_out=0
         self.k_in=0
+        self.k=0
 
-class cl_net():
+class network():
 
-    def __init__(self,file_net=None,file_keys=None,directed=True,verbose=True):
+    def __init_att__(self):
 
-        self.init_net(directed)
-
-        if file_net!=None:
-            self.read_net(file_net)
-        if file_keys!=None:
-            self.read_keys(file_keys)
-
-        if verbose:
-            self.info()
-
-        return
-
-    def init_net(self,directed):
-
-        self.directed=directed
         self.num_nodes=0
-        self.num_links=0
         self.num_clusters=0
         self.num_components=0
         self.node=[]
         self.cluster=[]
         self.component=[]
-        self.k_total=0
+        self.k=0
         self.k_max=0
         self.k_out=0
         self.k_in=0
-        self.k_out_max=0
-        self.k_in_max=0
         self.weight=0
         self.labels={}
         self.clustering_method=' '
-        self.directed=directed
-
+        self.directed=True
+        self.kinetic=False
+ 
         self.file_net=None
-        self.file_keys=None
-
+        self.file_labels=None
+ 
         self.Ts=False
         self.T_ind=[]
         self.T_start=[]
-        self.T_weight=[]
+        self.T_wl=[]
+        self.T_wn=[]        
+
+        pass
+
+    def __init__(self,file_net=None,file_labels=None,net_format='text',labels_format='text',directed=True,kinetic=False,verbose=True):
+
+        self.__init_att__()
+        self.directed=directed
+        self.kinetic=kinetic
+
+        if file_net!=None:
+            self.read_net(file_net,net_format,verbose)
+            if file_labels!=None:
+                self.read_labels(file_labels,labels_format)
+        else:
+            if verbose:
+                self.info()
+
+        pass
+
         
-    def info(self):
+    def info(self,update=True,verbose=True):
 
-        print '# Network:'
-        print '#', self.num_nodes, 'nodes'
-        print '#', self.k_total, 'links out'
-        print '#', self.weight, 'total weight nodes'
+        if update:
 
+            self.num_nodes=len(self.node)
+            self.weight=0
+            self.k_total=0
+            self.k_max=0
+            if self.kinetic:
+                for ii in range(self.num_nodes):
+                    self.node[ii].weight=sum(self.node[ii].link.values())
+            for ii in range(self.num_nodes):
+                self.weight+=self.node[ii].weight
+                k=len(self.node[ii].link)
+                self.node[ii].k_out=k
+                self.node[ii].k=k
+                self.k_total+=k
+                if (self.k_max<k): self.k_max=k
 
-    def add_node(self, new_node, weight=0):
+        if verbose:
+
+            print '# Network:'
+            print '#', self.num_nodes, 'nodes'
+            print '#', self.k_total, 'links out'
+            print '#', self.weight, 'total weight nodes'
+
+        pass
+
+    def add_node(self, new_node, weight=0,iout=False):
+        """Description add node"""
 
         node=cl_node()
         node.label=str(new_node)
-        if weight!=0:
-            node.weight=weight
-            self.weight+=weight
-        new_ind=len(self.node)
+        node.weight=weight
+        self.weight+=weight
+        no=self.num_nodes
         self.node.append(node)
-        self.labels[node.label]=new_ind
-        self.num_nodes=new_ind+1
-
-        return
-
-    def add_link(self,node_origin,node_final,weight=0):
-
-        v=[]
-        for aa in [node_origin,node_final]:
-            try:
-                ind=self.labels[str(aa)]
-            except:
-                ind=self.num_nodes
-                bb=self.add_node(aa)
-            v.append(ind)
-
-        if self.directed :
-            try:
-                self.node[v[0]].link[v[1]]+=weight
-            except:
-                self.node[v[0]].link[v[1]]=weight
-                self.node[v[0]].k_out+=1
-                self.node[v[1]].k_in+=1
-                self.k_out+=1
-                self.k_total+=1
-        else:
-            try:
-                self.node[v[1]].link[v[0]]+=weight
-            except:
-                self.node[v[1]].link[v[0]]=weight
-                self.node[v[1]].k_out+=1
-                self.node[v[0]].k_in+=1
-                self.k_out+=1
-                self.k_total+=1
+        self.labels[node.label]=no
+        self.num_nodes+=1
+        if iout:
+            return no
         pass
 
-    def read_net(self,name_file):
+    def add_link(self,node_origin,node_final,weight=0,index_origin=False,index_final=False,iout=False):
+
+        if index_origin:
+            no=node_origin
+        else:
+            try:
+                no=self.labels[str(node_origin)]
+            except:
+                no=self.add_node(node_origin,iout=True)
+
+        if index_final:
+            nf=node_final
+        else:
+            try:
+                nf=self.labels[str(node_final)]
+            except:
+                nf=self.add_node(node_final,iout=True)
+
+        try:
+            self.node[no].link[nf]+=weight
+        except:
+            self.node[no].link[nf]=weight
+
+        if not self.directed:
+            try:
+                self.node[nf].link[no]+=weight
+            except:
+                self.node[nf].link[no]=weight
+        
+        if iout:
+            return no, nf
+
+        pass
+
+    def build_Ts(self,alt_links=False):
+
+        if alt_links:
+
+            alt_k_total=0
+            for ii in self.node:
+                alt_k_total+=len(ii.alt_link[ii])
+
+            alt_T_ind=zeros(shape=(alt_k_total),dtype=float,order='Fortran')
+            alt_T_start=zeros(shape=(self.num_nodes+1),dtype=float,order='Fortran')
+            alt_T_wl=zeros(shape=(alt_k_total),dtype=float,order='Fortran')
+
+            kk=0
+            for ii in range(self.num_nodes):
+                alt_T_start[ii]=kk
+                aux_links=self.node[ii].alt_link.keys()
+                if ii in aux_links:
+                    alt_T_ind[kk]=ii+1
+                    alt_T_wl[kk]=self.node[ii].alt_link[ii]
+                    aux_links.remove(ii)
+                    kk+=1
+                for jj in aux_links:
+                    alt_T_ind[kk]=jj+1
+                    alt_T_wl[kk]=self.node[ii].alt_link[jj]
+                    kk+=1
+            alt_T_start[self.num_nodes]=kk
+
+            return alt_k_total, alt_T_start, alt_T_ind, alt_T_wl
+
+        else:
+
+            self.info(verbose=False)
+            
+            self.T_ind=zeros(shape=(self.k_total),dtype=float,order='Fortran')
+            self.T_start=zeros(shape=(self.num_nodes+1),dtype=float,order='Fortran')
+            self.T_wl=zeros(shape=(self.k_total),dtype=float,order='Fortran')
+            self.T_wn=zeros(shape=(self.num_nodes),dtype=float,order='Fortran')
+            
+            kk=0
+            for ii in range(self.num_nodes):
+                self.T_wn[ii]=self.node[ii].weight
+                self.T_start[ii]=kk
+                aux_links=self.node[ii].link.keys()
+                if ii in aux_links:
+                    self.T_ind[kk]=ii+1
+                    self.T_wl[kk]=self.node[ii].link[ii]
+                    aux_links.remove(ii)
+                    kk+=1
+                for jj in aux_links:
+                    self.T_ind[kk]=jj+1
+                    self.T_wl[kk]=self.node[ii].link[jj]
+                    kk+=1
+            self.T_start[self.num_nodes]=kk
+            self.Ts=True
+
+        pass
+
+    def remove_Ts(self):
+
+        self.T_ind=[]
+        self.T_start=[]
+        self.T_wl=[]
+        self.T_wn=[]
+        self.Ts=False
+
+        pass
+
+    def merge_net(self,net=None,verbose=True):
+         
+        # merging the labels and weights of nodes
+         
+        net_to_total=[]
+        labels_aux=copy.deepcopy(self.labels)
+        for ii in range(net.num_nodes):
+            try :
+                no=labels_aux[net.node[ii].label]
+            except:
+                no=self.add_node(net.node[ii].label,iout=True)
+            self.node[no].weight+=net.node[ii].weight
+            net_to_total.append(no)
+
+        # merging the links
+         
+        for no in range(net.num_nodes):
+            no2=net_to_total[no]
+            for nf,wf in net.node[no].link.iteritems():
+                nf2=net_to_total[nf]
+                self.add_link(no2,nf2,weight=wf,index_origin=True,index_final=True)
+
+        self.info(update=True,verbose=verbose)
+        del(net_to_total); del(labels_aux)
+
+        pass
+
+    def extract_net(self,nodes=None,verbose=True):
+         
+        # extracting the labels and weights of nodes
+        
+        aux=[-2 for ii in range(self.num_nodes)]
+        temp_net=network(directed=self.directed,kinetic=self.kinetic,verbose=False)
+        for ii in nodes:
+            aux[ii]=temp_net.add_node(self.node[ii].label,self.node[ii].weight,iout=True)
+        for ii in nodes:
+            aa=aux[ii]
+            for jj,kk in self.node[ii].link.iteritems():
+                bb=aux[jj]
+                if bb>-1:
+                    temp_net.add_link(aa,bb,weight=kk,index_origin=True,index_final=True)
+
+        del(aux)
+        if temp_net.kinetic:
+            for ii in temp_net.node:
+                ii.weight=sum(ii.link.values())
+
+        temp_net.info(update=True,verbose=verbose)
+        return temp_net
+         
+    def read_net(self,name_file,format='text',verbose=True):
+        """format:['text','native']"""
 
         self.file_net=name_file
 
+        fff=open(name_file,'r')
 
-        ff=open(name_file,'r')
-        line=ff.readline()
-        self.num_nodes=int(line.split()[0])
+        if format=='text':
+            io=cl_io()
+            for line in fff.readlines():
+                if line[0]=='@':
+                    io.read_H1(line)
+                    if io.v['with_index']:
+                        for ii in range(io.v['num_nodes']):
+                            self.add_node('')
+                        self.labels={}
 
-        k_max=int(line.split()[1])
-        k_total=int(line.split()[2])
+                if line[0]=='#':
+                    io.read_H2(line)
+                else:
+                    to_read=io.read_line(line)
+                    if to_read:
+                        if io.v['with_links']:
+                            self.add_link(io.v['node1'],io.v['node2'],weight=io.v['weight'],index_origin=io.v['with_index'],index_final=io.v['with_index'])
+                            if not io.v['directed']:
+                                self.add_link(io.v['node2'],io.v['node1'],weight=io.v['weight'],index_origin=io.v['with_index'],index_final=io.v['with_index'])
+                        else:
+                            if io.v['with_index']:
+                                self.node[io.v['node1']].weight=io.v['weight']
+                            else:
+                                io.v['node1']=self.add_node(io.v['node1'],weight=io.v['weight'],iout=True)
+                            if io.v['with_coors']: self.node[io.v['node1']].coors=[io.v['coorx'],io.v['coory'],io.v['coorz']]
+                            if io.v['with_cluster']: self.node[io.v['node1']].cluster=io.v['cluster']
+                            if io.v['with_color']: self.node[io.v['node1']].color=io.v['color']
+                            if io.v['with_size']: self.node[io.v['node1']].size=io.v['size']
 
-        self.T_ind=zeros(shape=(k_total),dtype=int,order='Fortran')
-        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
-        self.T_weight=zeros(shape=(k_total),dtype=int,order='Fortran')
+            self.directed=False
+            if io.v['directed']:
+                self.directed=True
+
+            self.kinetic=False
+            if io.v['kinetic']:
+                self.kinetic=True
+                for ii in self.node:
+                    ii.weight=sum(ii.link.values())
+
+            if io.v['with_cluster']:
+                jj=0
+                # todo
+
+            del(io)
+
+        if format=='native':
+
+            line=fff.readline()
+            self.num_nodes=int(line.split()[0])
+            
+            k_max=int(line.split()[1])
+            k_total=int(line.split()[2])
+            
+            self.T_ind=zeros(shape=(k_total),dtype=float,order='Fortran')
+            self.T_start=zeros(shape=(self.num_nodes+1),dtype=float,order='Fortran')
+            self.T_wl=zeros(shape=(k_total),dtype=float,order='Fortran')
+            
+            data=fff.read()
+
+            data2=[]
+            for aa in data.split():
+                data2.append(int(aa))
+                
+
+            jj=-1
+            sumk=0
+            for ii in range(self.num_nodes):
+                jj+=1
+
+                node=cl_node()
+                node_ind=data2[jj]
+                k_out=data2[jj+1]
+                weight=data2[jj+2]
+                self.T_start[ii]=sumk
+                
+                jj=jj+2
+                for kk in range(k_out):
+                    jj+=1
+                    neigh=data2[jj]
+                    jj+=1
+                    flux=data2[jj]
+                    self.T_ind[sumk]=neigh
+                    self.T_wl[sumk]=flux
+                    sumk+=1
+                    node.link[neigh-1]=flux
+
+                node.k_out=len(node.link)
+                node.weight=sum(node.link.values())
+                self.node.append(node)
+
+            self.T_start[self.num_nodes]=sumk
+
+            self.k_max=k_max
+            self.num_links=0
+            for ii in self.node:
+                self.num_links+=ii.k_out
+            self.k_total=k_total
+            self.Ts=True
         
-        data=ff.read()
-        ff.close()
-        data2=[]
-        for aa in data.split():
-            data2.append(int(aa))
 
-
-        jj=-1
-        sumk=0
-        for ii in range(self.num_nodes):
-            jj+=1
-
-            node=cl_node()
-            node_ind=data2[jj]
-            k_out=data2[jj+1]
-            weight=data2[jj+2]
-            self.T_start[ii]=sumk
-
-            jj=jj+2
-            for kk in range(k_out):
-                jj+=1
-                neigh=data2[jj]
-                jj+=1
-                flux=data2[jj]
-                self.T_ind[sumk]=neigh
-                self.T_weight[sumk]=flux
-                sumk+=1
-                node.link[neigh-1]=flux
-
-            node.k_out=len(node.link)
-            node.weight=sum(node.link.values())
-            self.node.append(node)
-
-        self.T_start[self.num_nodes]=sumk
-
-        self.k_max=k_max
-        self.num_links=0
         self.weight=0
         for ii in self.node:
-            self.num_links+=ii.k_out
             self.weight+=ii.weight
-        self.k_total=k_total
-        self.Ts=True
-        
-    def build_Ts(self):
 
-        self.T_ind=zeros(shape=(self.k_total),dtype=int,order='Fortran')
-        self.T_start=zeros(shape=(self.num_nodes+1),dtype=int,order='Fortran')
-        self.T_weight=zeros(shape=(self.k_total),dtype=int,order='Fortran')
+        self.info(verbose=verbose)
+        fff.close()
+        pass
 
-        kk=0
-        for ii in range(self.num_nodes):
-            self.T_start[ii]=kk
-            aux_links=self.node[ii].link.keys()
-            if ii in aux_links:
-                self.T_ind[kk]=ii+1
-                self.T_weight[kk]=self.node[ii].link[ii]
-                aux_links.remove(ii)
-                kk+=1
-            for jj in aux_links:
-                self.T_ind[kk]=jj+1
-                self.T_weight[kk]=self.node[ii].link[jj]
-                kk+=1
-        self.T_start[self.num_nodes]=kk
-        self.Ts=True
+    def read_labels(self,name_file,format='text'):
+
+        """format=[text,water]"""
+
+        self.file_labels=name_file
+
+        fff=open(name_file,'r')
+
+        if format == 'water':
+            for ii in range(self.num_nodes):
+                line=ff.readline()
+                mss=line.split()[1]+' |'
+                for jj in range(2,6):
+                    mss=mss+' '+line.split()[jj]
+                    mss=mss+' |' 
+                for jj in range(6,9):
+                    mss=mss+' '+line.split()[jj]
+                    mss=mss+' |'
+                for jj in range(9,12):
+                    mss=mss+' '+line.split()[jj]
+                    mss=mss+' |'
+                for jj in range(12,15):
+                    mss=mss+' '+line.split()[jj]
+                    mss=mss+' |'
+                for jj in range(15,18):
+                    mss=mss+' '+line.split()[jj]
+                index=int(line.split()[0])-1
+                self.labels[mss]=index
+                self.node[index].label=mss
+
+        if format == 'text':
+            line=fff.readline()
+            line=line.replace('#','')
+            line=line.split()
+            num_fields=len(line)
+            for ind in range(num_fields):
+                if line[ind]=='index':
+                    nind=ind
+                if line[ind]=='label':
+                    nlab=ind
+            for line in fff.readlines():
+                line=line.split()
+                self.node[int(line[nind])].label=line[nlab]
+                self.labels[line[nlab]]=int(line[nind])
+
+        if len(self.labels)>self.num_nodes:
+            print '# Some labels have no node'
+        if len(self.labels)<self.num_nodes:
+            print '# Some nodes have no label'
 
 
-    def read_keys(self,name_file):
+        fff.close()
 
-        self.file_keys=name_file
 
-        ff=open(name_file,'r')
+    def write_net(self,name_file=None,format='text',pymol=False,with_index=True,with_cluster=False):
 
-        for ii in range(self.num_nodes):
-            line=ff.readline()
-            mss=line.split()[1]+' |'
-            for jj in range(2,6):
-                mss=mss+' '+line.split()[jj]
-            mss=mss+' |' 
-            for jj in range(6,9):
-                mss=mss+' '+line.split()[jj]
-            mss=mss+' |'
-            for jj in range(9,12):
-                mss=mss+' '+line.split()[jj]
-            mss=mss+' |'
-            for jj in range(12,15):
-                mss=mss+' '+line.split()[jj]
-            mss=mss+' |'
-            for jj in range(15,18):
-                mss=mss+' '+line.split()[jj]
-            index=int(line.split()[0])-1
-            self.labels[mss]=index
-            self.node[index].label=mss
+        if name_file==None:
+            print '# Error: name_file required'
+            pass
+
+        #todo: check if the file exists
+
+        if format=='native':
+
+            fff=open(name_file,'w')
+
+            print >> fff, self.num_nodes, self.k_max, self.k_total
+
+            for ii in range(self.num_nodes):
+                aux=[]
+                aux.append(ii+1)
+                aux.append(self.node[ii].k_out)
+                aux.append(self.node[ii].weight)
+                if ii in self.node[ii].link.keys():
+                    aux.append(ii+1)
+                    aux.append(self.node[ii].link[ii])
+                for jj in self.node[ii].link.keys():
+                    if jj!=ii:
+                        aux.append(jj+1)
+                        aux.append(self.node[ii].link[jj])
+                aux=str(aux).replace(',','')
+                aux=aux.replace('[','')
+                aux=aux.replace(']','')
+                print >> fff,aux
+
+            fff.close()
+
+        elif format=='text':
+
+            io=cl_io()
+            io.v['num_nodes']=self.num_nodes
+            io.v['with_index']=with_index
+            io.v['directed']=self.directed
+            io.v['kinetic']=self.kinetic
+
+            fff=open(name_file,'w')
+
+            header=[]
+            if io.v['with_index']:
+                header.append('num_nodes='+str(self.num_nodes))
+                header.append('with_index='+str(with_index))
+            header.append('directed='+str(self.directed))
+            if io.v['kinetic']:
+                header.append('kinetic='+str(self.kinetic))
+            print >> fff, '@ ',', '.join(header)
+
+            io.v['with_weight']=True
+            io.v['with_coors']=False
+            io.v['with_cluster']=with_cluster
+            io.v['with_color']=False
+            io.v['with_size']=False
+
+            if pymol:
+                io.v['with_coors']=True
             
+            line=[]
+            line.append('node')
+            if io.v['with_weight']: line.append('weight')
+            if io.v['with_cluster']: line.append('cluster')
+            if io.v['with_size']: line.append('size')
+            if io.v['with_color']: line.append('color')
+            if io.v['with_coors']: line.append('coorx'); line.append('coory'); line.append('coorz')
+            print >> fff,'# ',' '.join(line)
+
+            for ii in range(self.num_nodes):
+                line=[]
+                node=self.node[ii]
+                if io.v['with_index']:
+                    line.append(str(ii))
+                else:
+                    line.append(node.label)
+                if io.v['with_weight']: line.append(str(node.weight))
+                if io.v['with_cluster']: line.append(str(node.cluster))
+                if io.v['with_size']: line.append(str(node.size))
+                if io.v['with_color']: line.append(str(node.color))
+                if io.v['with_coors']:
+                    line.append('  ')
+                    aux=[0.0,0.0,0.0]
+                    for jj in range(len(node.coors)):
+                        aux[jj]=node.coors[jj]
+                    for jj in aux: line.append(str(jj))
+                print >> fff,' '.join(line)
+            
+            print >> fff,' '
+            print >> fff,'# node node weight'
+            
+            for ii in range(self.num_nodes):
+                for (jj,v) in self.node[ii].link.iteritems():
+                    line=[]
+                    if io.v['with_index']:
+                        line.append(str(ii))
+                        line.append(str(jj))
+                    else:
+                        line.append(self.node[ii].label)
+                        line.append(self.node[jj].label)
+                    line.append(str(v))
+                    print >> fff,' '.join(line)
+            
+            del(io)
+            fff.close()
+            
+
+
+
+
+############## FUNCTIONS FOR NETWORKS
+
 
     def k_distribution (self, option='out', bins=20, segment=None, delta_x=None,norm=None):
 
@@ -296,7 +751,7 @@ class cl_net():
         for ii in range(num_runs):
             iseed=random.random_integers(0,4094,4)
             iseed[3]=(iseed[3]/2)*2+1
-            aa=f_net.funcs.brownian_run_fpt(self.T_start,self.T_ind,self.T_weight,iseed,node_origin,node_sink,self.num_nodes,self.k_total)
+            aa=f_net.funcs.brownian_run_fpt(self.T_start,self.T_ind,self.T_wl,iseed,node_origin,node_sink,self.num_nodes,self.k_total)
             scratch.append(aa)
 
         if option in ['distribution','both']:
@@ -312,14 +767,18 @@ class cl_net():
 
         pass
 
-    def brownian_walker (self,node_origin,length):
+    def brownian_walker (self,node_origin,length,self_links=True):
 
         if self.Ts==False :
             self.build_Ts()
 
         iseed=random.random_integers(0,4094,4)
         iseed[3]=(iseed[3]/2)*2+1
-        scratch=f_net.funcs.brownian_run(self.T_start,self.T_ind,self.T_weight,iseed,node_origin,length,self.num_nodes,self.k_total)
+
+        if self_links:
+            scratch=f_net.funcs.brownian_run(1,self.T_start,self.T_ind,self.T_wl,iseed,node_origin,length,self.num_nodes,self.k_total)
+        else:
+            scratch=f_net.funcs.brownian_run(0,self.T_start,self.T_ind,self.T_wl,iseed,node_origin,length,self.num_nodes,self.k_total)
 
         return scratch
 
@@ -334,7 +793,7 @@ class cl_net():
 
             self.build_Ts()
             
-        db_dist=f_net.funcs.detailed_balance_distance(p,self.T_start,self.T_ind,self.T_weight,self.num_nodes,self.k_total)
+        db_dist=f_net.funcs.detailed_balance_distance(p,self.T_start,self.T_ind,self.T_wl,self.num_nodes,self.k_total)
 
         return db_dist
 
@@ -343,16 +802,16 @@ class cl_net():
         if self.Ts==False:
             self.build_Ts()
 
-        vect_out=f_net.funcs.evolution_step(self.T_start,self.T_ind,self.T_weight,vect_in,self.num_nodes,self.k_total)
+        vect_out=f_net.funcs.evolution_step(self.T_start,self.T_ind,self.T_wl,vect_in,self.num_nodes,self.k_total)
 
         return vect_out
 
     def symmetrize(self,new_net=False,verbose=True):
 
-        temp=cl_net(verbose=False)
+        temp=network(verbose=False)
         temp.labels=copy.deepcopy(self.labels)
         temp.file_net=copy.deepcopy(self.file_net)
-        temp.file_keys=copy.deepcopy(self.file_keys)
+        temp.file_labels=copy.deepcopy(self.file_labels)
         temp.num_nodes=copy.deepcopy(self.num_nodes)
 
         aux={}
@@ -368,9 +827,9 @@ class cl_net():
             self.build_Ts()
             
 
-        pfff=f_net.funcs.symmetrize_net(temp.k_total,self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
+        pfff=f_net.funcs.symmetrize_net(temp.k_total,self.T_ind,self.T_wl,self.T_start,self.num_nodes,self.k_total)
         temp.k_max=pfff[0]
-        temp.T_weight=pfff[1]
+        temp.T_wl=pfff[1]
         temp.T_ind=pfff[2]
         temp.T_start=pfff[3]
         temp.Ts=True
@@ -380,11 +839,13 @@ class cl_net():
             node.weight=pfff[4][ii]
             for jj in range(temp.T_start[ii],temp.T_start[ii+1]):
                 neigh=temp.T_ind[jj]
-                node.link[neigh-1]=temp.T_weight[jj]
+                node.link[neigh-1]=temp.T_wl[jj]
             node.k_out=temp.T_start[ii+1]-temp.T_start[ii]
             temp.weight+=node.weight
             node.label=self.node[ii].label
             temp.node.append(node)
+
+        temp.directed=False
 
         if verbose==True :
             temp.info()
@@ -401,7 +862,7 @@ class cl_net():
             self.build_Ts()
 
 
-        self.num_clusters,pfff=f_net.funcs.grad(self.T_ind,self.T_weight,self.T_start,self.num_nodes,self.k_total)
+        self.num_clusters,pfff=f_net.funcs.grad(self.T_ind,self.T_wl,self.T_start,self.num_nodes,self.k_total)
 
 
         Clust={}
@@ -454,23 +915,180 @@ class cl_net():
 
 
 
-    def cfep_pfold(self,A=0,B=0,num_bins=1000):
+    def cfep(self,mode='pfold',A=0,B=0,num_bins=100000,num_iter=200000):
 
-        """ Tengo que comprobar esta funcion"""
+        if self.Ts==False:
 
-        A=A+1
-        B=B+1
-        self.cfep,self.key_cfep1,self.key_cfep2=f_net.funcs.cfep_pfold(A,B,self.T_ind,self.T_weight,self.T_start,num_bins,self.num_nodes,self.k_total)
+            self.build_Ts()
 
-    def dijkstra(self):
+        if mode=='pfold':
+
+            A=A+1
+            B=B+1
+            cfep_out,key_cfep1,key_cfep2=f_net.funcs.cfep_pfold(A,B,self.T_ind,self.T_wl,self.T_start,num_bins,num_iter,self.num_nodes,self.k_total)
+            return cfep_out,key_cfep1,key_cfep2
+
+        if mode=='mfpt':
+
+            A=A+1
+            cfep_out,key_cfep1,key_cfep2=f_net.funcs.cfep_mfpt(A,self.T_ind,self.T_wl,self.T_start,num_bins,num_iter,self.num_nodes,self.k_total)
+            return cfep_out,key_cfep1,key_cfep2
+
+    def dijkstra(self,node='all',alt_links=False):
+
+        if self.Ts==False :
+            self.build_Ts()
+
+        if node=='all':
+            node=-1
+            dim_out=self.num_nodes
+        else:
+            node=node+1
+            dim_out=1
+
+        opt_directed=0
+        if self.directed:
+            opt_directed=1
+
+        pfff=f_net.funcs.dijkstra(node,dim_out,opt_directed,self.T_start,self.T_ind,self.T_wl,self.num_nodes,self.k_total)
+
+        return pfff
+
+    def mds(self,dim=3,eigenvs='all',output=False,alt_links=False,distances=None,dijkstra=True,stress=False):
+
+        #eigenvs=self.num_nodes
+        if eigenvs in ['all','All']:
+            eigenvs=self.num_nodes
+        if eigenvs>self.num_nodes:
+            print '# Error: eigenvs>num_nodes'
+            return 
+        if dim>eigenvs:
+            print '# Error: dim>eigenvs'
+            return
+
+        if distances==None: #Just to fill the variable
+            distances=zeros(shape=(1,1),dtype=float,order='Fortran')
+            dim_distances=1
+        else:
+            dim_distances=len(distances)
+
+        opt=0
+        opt_stress=0
+        opt_directed=0
+        if self.directed:
+            opt_directed=1
+
+        if dijkstra:
+            opt=1
+        if stress:
+            opt_stress=1
+
+        if alt_links:
+            alt_k_total, alt_T_start, alt_T_ind, alt_T_wl=self.build_Ts(alt_links=True)
+            o_coors,o_eigenvals,o_eigenvects,o_stress=f_net.funcs.mds(opt_directed,opt,opt_stress,dim,eigenvs,alt_T_start,alt_T_ind,alt_T_wl,distances,self.num_nodes,alt_k_total,dim_distances)
+            del(alt_k_total, alt_T_start, alt_T_ind, alt_T_wl)
+        else:
+            if self.Ts==False :
+                self.build_Ts()
+            o_coors,o_eigenvals,o_eigenvects,o_stress=f_net.funcs.mds(opt_directed,opt,opt_stress,dim,eigenvs,self.T_start,self.T_ind,self.T_wl,distances,self.num_nodes,self.k_total,dim_distances)
+
+        for ii in range(self.num_nodes):
+            self.node[ii].coors=o_coors[ii][:]
+
+        if output:
+            if stress:
+                return o_eigenvals,o_eigenvects,o_stress
+            else:
+                return o_eigenvals,o_eigenvects
+        else:
+            pass
+
+
+    def mcl(self,granularity=1.5,eps=0.005,iterations=0,alt_links=False,verbose=True):
+
+        ## I have to reset previous clusters
+
+        if alt_links:
+
+            alt_k_total, alt_T_start, alt_T_ind, alt_T_wl=self.build_Ts(alt_links=True)
+            self.num_clusters,pfff=f_net.funcs.mcl(granularity,eps,iterations,alt_T_start,alt_T_ind,alt_T_wl,self.num_nodes,alt_k_total)
+            del(alt_k_total, alt_T_start, alt_T_ind, alt_T_wl)
+
+        else:
+            if self.Ts==False :
+                self.build_Ts()
+
+            self.num_clusters,pfff=f_net.funcs.mcl(granularity,eps,iterations,self.T_start,self.T_ind,self.T_wl,self.num_nodes,self.k_total)
+
+
+        Clust={}
+
+        for ii in range(self.num_nodes):
+            try:
+                Clust[pfff[ii]].append(ii)
+            except:
+                Clust[pfff[ii]]=[]
+                Clust[pfff[ii]].append(ii)
+
+
+        a=0
+        for ii in Clust.keys():
+            temp=cl_cluster()
+            temp.label=self.node[int(ii)].label
+            temp.nodes=Clust[ii]
+            temp.num_nodes=len(temp.nodes)
+            temp.weight=0
+            for jj in temp.nodes:
+                self.node[jj].cluster=a
+                temp.weight+=self.node[jj].weight
+            self.cluster.append(temp)
+            a+=1
+
+
+        # Output: self.clust_info, self.representants, self.node_belongs2, self.cluster_weight, self.num_clusters
+        if verbose:
+            print '# Number of clusters: ',self.num_clusters
 
         pass
 
-    def mds(self):
+    def components(self,alt_links=False,verbose=True):
 
-        pass
+        if alt_links:
+            alt_k_total, alt_T_start, alt_T_ind, alt_T_wl=self.build_Ts(alt_links=True)
+            self.num_components,pfff=f_net.funcs.components(alt_T_start,alt_T_ind,alt_T_wl,self.num_nodes,alt_k_total)
+            del(alt_k_total, alt_T_start, alt_T_ind, alt_T_wl)
+        else:
+            if self.Ts==False :
+                self.build_Ts()
+            self.num_components,pfff=f_net.funcs.components(self.T_start,self.T_ind,self.T_wl,self.num_nodes,self.k_total)
 
-    def mcl(self):
+        Comp={}
+
+        for ii in range(self.num_nodes):
+            try:
+                Comp[pfff[ii]].append(ii)
+            except:
+                Comp[pfff[ii]]=[]
+                Comp[pfff[ii]].append(ii)
+
+
+        a=0
+        for ii in Comp.keys():
+            temp=cl_cluster()
+            temp.label=a
+            temp.nodes=Comp[ii]
+            temp.num_nodes=len(temp.nodes)
+            temp.weight=0
+            for jj in temp.nodes:
+                self.node[jj].component=a
+                temp.weight+=self.node[jj].weight
+            self.component.append(temp)
+            a+=1
+
+        del(Comp)
+
+        if verbose:
+            print '# Number of components: ',self.num_components
 
         pass
 
@@ -494,66 +1112,55 @@ class cl_net():
 #    print ' # New network file:', output
 #    return None
 
+class traj2net():
 
-def merge_nets(net1=None,net2=None,verbose=True):
+    def __init__(self,traj=None,num_frames=0,num_parts=0,dimension=0,optimized=False):
 
-    net_total=cl_net(verbose=False)
+        self.optimized=False
+        self.init=False
+        self.num_frames=0
+        self.num_parts=0
+        self.dimension=0
+        self.keys=[]
+        self.coors=[]
+        self.nodes=[]
 
-    # merging the labels and keys of nodes
+        if traj!=None:
+            self.init=True
+            self.coors=traj
+            self.num_frames=len(traj)
+            self.dimension=len(traj[0])
 
-    net_total.labels=copy.deepcopy(net1.labels)
-    total_num_nodes=net1.num_nodes
+        if num_frames!=0 and num_parts!=0 and dimension!=0:
+            self.init=True
+            if optimized:
+                self.optimized=True
 
-    net2_to_total=[0 for x in range(net2.num_nodes)]
+    def append_frame(self,frame=None):
 
-    for ii in range(net1.num_nodes):
-        temp=cl_node()
-        temp.label=copy.deepcopy(net1.node[ii].label)
-        temp.link=copy.deepcopy(net1.node[ii].link)
-        net_total.node.append(temp)
+        #if self.init:
+        #    for ii in range(num_parts):
+        #        for jj in range(dim):
+            
+        pass
 
+    def append_frame(self):
 
-    for ii in range(net2.num_nodes):
-        try :
-            jj=net1.labels[net2.node[ii].label]
-            net2_to_total[ii]=jj
-        except:
-            net_total.labels[net2.node[ii].label]=total_num_nodes
-            temp=cl_node()
-            temp.label=net2.node[ii].label
-            net_total.node.append(temp)
-            net2_to_total[ii]=total_num_nodes
-            total_num_nodes+=1
+        pass
 
-    net_total.num_nodes=total_num_nodes
+class kinetic_network(network):
+
+    def __init__(self,traj=None,num_frames=0,dimension=0,verbose=True):
+
+        self.__init_att__()
+
+        self.traj=traj2net()
+
+        if verbose:
+            print 'listo'
+
+        pass
 
     
-    # merging the links
 
-    for aa in range(net2.num_nodes):
-        aaa=net2_to_total[aa]
-        for ii,jj in net2.node[aa].link.iteritems():
-            iii=net2_to_total[ii]
-            try:
-                net_total.node[aaa].link[iii]+=jj
-            except:
-                net_total.node[aaa].link[iii]=jj
-    
-    net_total.num_links=0
-    net_total.weight=0
-    for ii in net_total.node:
-        ii.k_out=len(ii.link)
-        ii.weight=sum(ii.link.values())
-        net_total.num_links+=ii.k_out
-        net_total.weight+=ii.weight
-        if (net_total.k_max<ii.k_out): 
-            net_total.k_max=ii.k_out
 
-    net_total.k_total=net_total.num_links
-
-    net_total.build_Ts()
-
-    if verbose:
-        net_total.info()
-
-    return net_total

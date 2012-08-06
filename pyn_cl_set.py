@@ -156,7 +156,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
         # From labels_set: .name, .index, .pdb_index, .num_atoms, .list_atoms
 
         # > Instantation options:
-        self.file=input_file            # pdb,gro...
+        self.file_topol=input_file       # pdb,gro...
         self.file_hbonds=''             # still not useful -do not remove-
         self.file_mss=''                # still not useful -do not remove-
         self.file_shell=''              # still not useful -do not remove-
@@ -208,7 +208,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 print '# The file '+input_file+' exists in the local folder.'
                 print '# Loading it...'
 
-            self.file=input_file
+            self.file_topol=input_file
 
         # BUILDING THE SET FROM A FILE
 
@@ -222,11 +222,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
             # Reading the file and
             # attaching the atoms: self.atom[] (cl_unit)
 
-            if self.file.endswith('pdb'):
-                self.read_pdb(self.file)
-
-            if self.file.endswith('gro'):
-                self.read_gro(self.file)
+            self.read_topol(self.file_topol)
 
             # Finnal set up of the attributes of the cl_units in self.atom[]:
             
@@ -341,18 +337,25 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             ### Setting up the local attributes
 
-            # Covalent bonds
+            # Topology and Covalent bonds
 
+            missing_atoms=[]
             if with_bonds:
                 for residue in self.resid[:]:
-                    aux_name={}
+                    # Missing atoms in the residue topology
+                    found_atoms={}
                     for ii in residue.list_atoms:
-                        aux_name[tp.atom[self.atom[ii].name]]=ii
-                    for ii in tp.covalent_bonds[residue.name]:
-                        aa=aux_name[ii[0]]
-                        bb=aux_name[ii[1]]
-                        self.atom[aa].covalent_bonds.append(bb)
-                        self.atom[bb].covalent_bonds.append(aa)
+                        found_atoms[tp.atom[self.atom[ii].name]]=ii
+                    for ii in tp.residue_atoms[residue.name]:
+                        if ii not in found_atoms.keys():
+                            missing_atoms.append([ii,residue.name,residue.pdb_index])
+                    # Covalent bonds
+                    #for ii in tp.covalent_bonds[residue.name]:
+                    #    aa=aux_name[ii[0]]
+                    #    bb=aux_name[ii[1]]
+                    #    self.atom[aa].covalent_bonds.append(bb)
+                    #    self.atom[bb].covalent_bonds.append(aa)
+
 
             # Charge
 
@@ -414,7 +417,7 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
             ### Setting up the global attributes
 
-            self.name=self.file[:-self.file[::-1].find('.')-1]       # file=FOO.N.pdb -> name=FOO.N
+            self.name=self.file_topol[:-self.file[::-1].find('.')-1]       # file=FOO.N.pdb -> name=FOO.N
             self.num_atoms=len(self.atom)
             self.dimensionality=self.num_atoms*3
             self.num_residues=len(self.resid)
@@ -428,6 +431,8 @@ class molecule(labels_set):               # The suptra-estructure: System (water
                 self.load_coors(self.file)
  
             if verbose:
+                for ii in missing_atoms:
+                    print '#',ii[0],ii[1],ii[2]
                 self.info()
 
         ## END of IF input_file
@@ -459,64 +464,49 @@ class molecule(labels_set):               # The suptra-estructure: System (water
 
     # To handle files
 
-    def read_pdb (self,name_file):
+    def read_topol (self,name_file):
 
-        for line in open(name_file,'r'):
+        if name_file.endswith('pdb'):
+            for line in open(name_file,'r'):
+                ss=line.split()
+                if ss[0] in ['HEADER','TITLE','CRYST1']: self.pdb_header.append(line)
+                if ss[0].startswith('END'): break  # To read only the 1st model
+                if ss[0] in ['HELIX','SHEET','TURN']: self.pdb_ss.append(line)
+                if ss[0] in ['ATOM','HETATM']:
+                    temp_atom=cl_unit()
+                    temp_atom.type_pdb=line[0:6].replace(' ', '')
+                    temp_atom.pdb_index=int(line[6:11])
+                    temp_atom.name=(line[12:16].split())[0]
+                    temp_atom.alt_loc=line[16]
+                    temp_atom.resid.name=(line[17:20]).replace(' ', '')
+                    temp_atom.chain.name=line[21]
+                    temp_atom.resid.pdb_index=int(line[22:26])
+                    temp_atom.code_ins_res=line[26]
+                    temp_atom.occup=float(line[54:60])
+                    temp_atom.bfactor=float(line[60:66])
+                    temp_atom.seg_ident=line[72:76].replace(' ', '')
+                    temp_atom.elem_symb=line[76:78].replace(' ', '')
+                    temp_atom.charge=line[78:80].replace(' ', '')
+                    temp_atom.index=len(self.atom)
+                    self.atom.append(temp_atom)
 
-            ss=line.split()
+        if name_file.endswith('gro'):
 
-            if ss[0] in ['HEADER','TITLE','CRYST1']: self.pdb_header.append(line)
+            ff=open(name_file,'r')
+            line=ff.readline()                                          # Header of the gro file
+            line=ff.readline()                                        
+            self.num_atoms=int(line)
 
-            if ss[0].startswith('END'): break  # To read only the 1st model
-
-            if ss[0] in ['HELIX','SHEET','TURN']: self.pdb_ss.append(line)
-
-            if ss[0] in ['ATOM','HETATM']:
-
-                temp_atom=cl_unit()
-                temp_atom.type_pdb=line[0:6].replace(' ', '')
-                temp_atom.pdb_index=int(line[6:11])
-                temp_atom.name=(line[12:16].split())[0]
-                temp_atom.alt_loc=line[16]
-                temp_atom.resid.name=(line[17:20]).replace(' ', '')
-                temp_atom.chain.name=line[21]
-                temp_atom.resid.pdb_index=int(line[22:26])
-                temp_atom.code_ins_res=line[26]
-                temp_atom.occup=float(line[54:60])
-                temp_atom.bfactor=float(line[60:66])
-                temp_atom.seg_ident=line[72:76].replace(' ', '')
-                temp_atom.elem_symb=line[76:78].replace(' ', '')
-                temp_atom.charge=line[78:80].replace(' ', '')
-                
-                temp_atom.index=len(self.atom)
-                self.atom.append(temp_atom)
-
-
-    def read_gro (self,name_file):
-
-        ff=open(name_file,'r')
-
-        line=ff.readline()                                          # Header of the gro file
-
-        line=ff.readline()                                        
-        self.num_atoms=int(line)
-
-        for i in range(self.num_atoms):           
-            
+            for i in range(self.num_atoms):           
             ## Fixed format taken from http://manual.gromacs.org/online/gro.html
-
-            temp_atom=cl_unit()
-
-            line=ff.readline()
-
-            temp_atom.pdb_index=int(line[15:20])
-            temp_atom.name=line[10:15].replace(" ", "")
-            temp_atom.resid.name=line[5:10].replace(" ", "")
-            temp_atom.resid.pdb_index=int(line[0:5]) 
-
-            temp_atom.index=i           
-
-            self.atom.append(temp_atom)
+                temp_atom=cl_unit()
+                line=ff.readline()
+                temp_atom.pdb_index=int(line[15:20])
+                temp_atom.name=line[10:15].replace(" ", "")
+                temp_atom.resid.name=line[5:10].replace(" ", "")
+                temp_atom.resid.pdb_index=int(line[0:5]) 
+                temp_atom.index=i           
+                self.atom.append(temp_atom)
 
 
     def write_pdb (self,filename=None):

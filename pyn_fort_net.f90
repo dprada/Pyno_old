@@ -1,6 +1,118 @@
 MODULE funcs
 
+INTEGER::num_frames,num_parts,dim_mss
+INTEGER,DIMENSION(:),ALLOCATABLE::lim_inf_mss,lim_sup_mss
+INTEGER,DIMENSION(:,:,:),ALLOCATABLE::traj_mss
+INTEGER,DIMENSION(:,:),ALLOCATABLE::labels
+
 CONTAINS
+
+SUBROUTINE INIT_TRAJ_MSS_2_NET ()
+
+  IF (ALLOCATED(traj_mss)) DEALLOCATE(traj_mss)
+
+  ALLOCATE(traj_mss(num_frames,num_parts,dim_mss))
+
+  !traj_mss=0
+  !print*,'SIZE', sizeof(traj_mss)/1073741824.0
+
+END SUBROUTINE INIT_TRAJ_MSS_2_NET
+
+SUBROUTINE TRAJ_MSS_2_TRAJ_NODES ()
+
+  !! You have to have right to write on the directory
+  
+  INTEGER,DIMENSION(:,:),ALLOCATABLE:: traj_nodes
+  LOGICAL,DIMENSION(:,:),ALLOCATABLE::occup
+  INTEGER,DIMENSION(:,:),ALLOCATABLE::indice
+  INTEGER,DIMENSION(:),ALLOCATABLE::deantes
+  INTEGER:: nnn,i,j,box,counted
+  CHARACTER*20::f1
+
+  ALLOCATE(traj_nodes(nw,num_frames))
+
+  DO box=1,dim_mss
+
+     IF (box==1) THEN
+        counted=1
+        traj_nodes=1
+     ELSE
+        CALL SYSTEM ('mv prov_trad_aux.aux prov_trad_aux_old.aux')
+     END IF
+     
+     ALLOCATE(occup(counted,lim_inf_mss(box):lim_sup_mss(box)),indice(counted,lim_inf_mss(box):lim_sup_mss(box)))
+     ocupado=.false.
+   
+     DO i=1,num_frames
+        DO ii=1,num_parts
+           b=traj_nodes(ii,i)
+           a=traj_mss(ii,i,box)
+           occup(b,a)=.true.
+        END DO
+     END DO
+   
+     nnn=0
+     WRITE(f1,'(I)') box
+     f1="(I,"//TRIM(ADJUSTL(f1))//"I3)"
+
+     OPEN(21,FILE="prov_trad_aux.aux",status="REPLACE",ACTION="WRITE")
+     IF (box==1) THEN
+        DO i=1,counted
+           DO j=lim_inf_mss(box),lim_sup_mss(box)
+              IF (occup(i,j)==.true.) THEN
+                 nnn=nnn+1
+                 indice(i,j)=nnn
+                 WRITE(21,f1) nnn,j
+              END IF
+           END DO
+        END DO
+     ELSE
+        OPEN(61,FILE="prov_trad_aux_old.aux",status="OLD",ACTION="READ")
+        ALLOCATE(deantes(box-1))         
+        DO i=1,counted
+           READ(61,*) a,deantes(:)
+           DO j=lim_inf_mss(box),lim_sup_mss(box)
+              IF (occup(i,j)==.true.) THEN
+                 nnn=nnn+1
+                 WRITE(21,f1) nnn,deantes(:),j
+                 indice(i,j)=nnn
+              END IF
+           END DO
+        END DO
+        DEALLOCATE(deantes)
+        CLOSE(61)
+     END IF
+     CLOSE(21)
+
+     DO i=1,num_frames
+        DO ii=1,num_parts
+           b=traj_nodes(ii,i)
+           a=traj_mss(ii,i,box)
+           traj_nodes(ii,i)=indice(b,a)
+        END DO
+     END DO
+     DEALLOCATE(indice,occup)
+     counted=nnn
+     
+     IF (box/=1) CALL SYSTEM('rm prov_trad_aux_old.aux')
+     
+  END DO
+
+  DEALLOCATE(traj_mss)
+  ALLOCATE(labels(counted,dim_mss))
+  
+  OPEN(61,FILE="prov_trad_aux.aux",status="OLD",ACTION="READ")
+
+  DO i=1,counted
+     READ(61) a,labels(i,:)
+  END DO
+
+  CLOSE(61)
+  CALL SYSTEM('rm prov_trad_aux_old.aux')
+
+
+END SUBROUTINE TRAJ_MSS_2_TRAJ_NODES
+
 
 
 SUBROUTINE EVOLUTION_STEP(T_start,T_ind,T_tau,vect_in,N_nodes,Ktot,vect_out)
@@ -8,12 +120,13 @@ SUBROUTINE EVOLUTION_STEP(T_start,T_ind,T_tau,vect_in,N_nodes,Ktot,vect_out)
   IMPLICIT NONE
 
   INTEGER,INTENT(IN)::N_nodes,Ktot
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
   
   DOUBLE PRECISION,DIMENSION(N_nodes),INTENT(IN)::vect_in
   DOUBLE PRECISION,DIMENSION(N_nodes),INTENT(OUT)::vect_out
-  INTEGER,DIMENSION(N_nodes)::Pe
+  DOUBLE PRECISION,DIMENSION(N_nodes)::Pe
 
   INTEGER::i,j,ii,jj
   
@@ -29,24 +142,25 @@ SUBROUTINE EVOLUTION_STEP(T_start,T_ind,T_tau,vect_in,N_nodes,Ktot,vect_out)
   DO i=1,N_nodes
      DO j=T_start(i)+1,T_start(i+1)
         jj=T_ind(j)
-        vect_out(jj)=vect_out(jj)+((T_tau(j)*1.0d0)/(Pe(i)*1.0d0))*vect_in(i)
+        vect_out(jj)=vect_out(jj)+(T_tau(j)/Pe(i))*vect_in(i)
      END DO
   END DO
 
 END SUBROUTINE EVOLUTION_STEP
 
-SUBROUTINE BROWNIAN_RUN (T_start,T_ind,T_tau,iseed,node_alpha,length,N_nodes,Ktot,vect_out)
+SUBROUTINE BROWNIAN_RUN (with_loops,T_start,T_ind,T_tau,iseed,node_alpha,length,N_nodes,Ktot,vect_out)
 
   IMPLICIT NONE
 
-  INTEGER,INTENT(IN)::N_nodes,Ktot,length
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,INTENT(IN)::N_nodes,Ktot,length,with_loops
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
   INTEGER,DIMENSION(4),INTENT(IN)::iseed
   INTEGER,INTENT(IN)::node_alpha
   INTEGER,DIMENSION(length+1),INTENT(OUT)::vect_out
 
-  INTEGER,DIMENSION(N_nodes)::Pe
+  DOUBLE PRECISION,DIMENSION(N_nodes)::Pe
   INTEGER,DIMENSION(4)::hseed
   INTEGER::place
   DOUBLE PRECISION::dice,bandera
@@ -55,49 +169,91 @@ SUBROUTINE BROWNIAN_RUN (T_start,T_ind,T_tau,iseed,node_alpha,length,N_nodes,Kto
 
   hseed=iseed
 
-  Pe=0
-  DO i=1,N_nodes
-     DO j=T_start(i)+1,T_start(i+1)
-        Pe(i)=Pe(i)+T_tau(j)
+  IF (with_loops==1) THEN
+
+     Pe=0
+     DO i=1,N_nodes
+        DO j=T_start(i)+1,T_start(i+1)
+           Pe(i)=Pe(i)+T_tau(j)
+        END DO
      END DO
-  END DO
-
-  vect_out=0
-  place=node_alpha+1
-  vect_out(1)=0
-
-  DO j=2,length+1
-
-     CALL dlarnv(1,hseed,1,dice)
-     dice=dice*Pe(place)
      
-     bandera=0.0d0
-     DO i=T_start(place)+1,T_start(place+1)
-        bandera=bandera+T_tau(i)
-        IF (dice<=bandera) THEN
-           place=T_ind(i)
-           exit
-        END IF
+     vect_out=0
+     place=node_alpha+1
+     vect_out(1)=0
+     
+     DO j=2,length+1
+        
+        CALL dlarnv(1,hseed,1,dice)
+        dice=dice*Pe(place)
+        
+        bandera=0.0d0
+        DO i=T_start(place)+1,T_start(place+1)
+           bandera=bandera+T_tau(i)
+           IF (dice<=bandera) THEN
+              place=T_ind(i)
+              exit
+           END IF
+        END DO
+        
+        vect_out(j)=place-1
+        
      END DO
 
-     vect_out(j)=place-1
+  ELSE
+
+     Pe=0
+     DO i=1,N_nodes
+        DO j=T_start(i)+1,T_start(i+1)
+           IF (T_ind(j)/=i) THEN
+              Pe(i)=Pe(i)+T_tau(j)
+           END IF
+        END DO
+     END DO
      
-  END DO
+     vect_out=0
+     place=node_alpha+1
+     vect_out(1)=0
+     
+     DO j=2,length+1
+        
+        CALL dlarnv(1,hseed,1,dice)
+        dice=dice*Pe(place)
+        
+        bandera=0.0d0
+        DO i=T_start(place)+1,T_start(place+1)
+           IF (T_ind(i)/=place) THEN
+              bandera=bandera+T_tau(i)
+              IF (dice<=bandera) THEN
+                 place=T_ind(i)
+                 exit
+              END IF
+           END IF
+        END DO
+        
+        vect_out(j)=place-1
+        
+     END DO
+
+  END IF
+
 
 END SUBROUTINE BROWNIAN_RUN
+
 
 SUBROUTINE BROWNIAN_RUN_FPT (T_start,T_ind,T_tau,iseed,node_alpha,node_omega,N_nodes,Ktot,steps)
 
   IMPLICIT NONE
 
   INTEGER,INTENT(IN)::N_nodes,Ktot
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
   INTEGER,DIMENSION(4),INTENT(IN)::iseed
   INTEGER,INTENT(IN)::node_alpha,node_omega
   INTEGER,INTENT(OUT)::steps
 
-  INTEGER,DIMENSION(N_nodes)::Pe
+  DOUBLE PRECISION,DIMENSION(N_nodes)::Pe
   INTEGER,DIMENSION(4)::hseed
   INTEGER::place,omega
   DOUBLE PRECISION::dice,bandera
@@ -141,7 +297,8 @@ SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
   IMPLICIT NONE
 
   INTEGER,INTENT(IN)::N_nodes,Ktot
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
   DOUBLE PRECISION,INTENT(IN)::p
   DOUBLE PRECISION,INTENT(OUT)::db_dist
@@ -149,7 +306,7 @@ SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
 
   INTEGER::i,j,ii,jj
   DOUBLE PRECISION::overp,aux_val
-  INTEGER::We_total,i_weight,i_trans,j_weight,j_trans
+  DOUBLE PRECISION::We_total,i_weight,i_trans,j_weight,j_trans
 
   overp=1.0d0/p
   db_dist=0.0d0
@@ -173,7 +330,7 @@ SUBROUTINE DETAILED_BALANCE_DISTANCE(db_dist,p,T_start,T_ind,T_tau,N_nodes,Ktot)
               exit
            END IF
         END DO
-        db_dist=db_dist+(abs((i_trans-j_trans)*1.0d0)/(We_total*1.0d0))**p
+        db_dist=db_dist+(abs((i_trans-j_trans))/(We_total))**p
      END DO
   END DO
 
@@ -187,34 +344,43 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
 
   IMPLICIT NONE
 
-  TYPE array_pointer
+  TYPE iarray_pointer
      INTEGER,DIMENSION(:),POINTER::p1
-  END TYPE array_pointer
+  END TYPE iarray_pointer
+  TYPE darray_pointer
+     DOUBLE PRECISION,DIMENSION(:),POINTER::d1
+  END TYPE darray_pointer
+
 
   INTEGER,INTENT(IN)::N_nodes,Ktot,newKtot
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
 
-  INTEGER,DIMENSION(N_nodes),INTENT(OUT)::Pe
+  DOUBLE PRECISION,DIMENSION(N_nodes),INTENT(OUT)::Pe
   INTEGER,DIMENSION(N_nodes+1),INTENT(OUT)::TT_start
-  INTEGER,DIMENSION(newKtot),INTENT(OUT)::TT_ind,TT_tau
+  INTEGER,DIMENSION(newKtot),INTENT(OUT)::TT_ind
+  DOUBLE PRECISION,DIMENSION(newKtot),INTENT(OUT)::TT_tau
   INTEGER,INTENT(OUT)::newKmax
 
   LOGICAL::interruptor
   INTEGER::i,j,l,h,g,gg,destino
-  integer,dimension(:),allocatable::salidas,auxx1,auxx2,SL
-  TYPE(array_pointer),DIMENSION(:),POINTER::F_ind,flux
+  DOUBLE PRECISION::aux,aux2
+  integer,dimension(:),allocatable::salidas,auxx1
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::SL,auxx2
+  TYPE(iarray_pointer),DIMENSION(:),POINTER::F_ind
+  TYPE(darray_pointer),DIMENSION(:),POINTER::flux
   
-  Pe=0
+  Pe=0.0d0
   TT_start=0
   TT_ind=0
-  TT_tau=0
+  TT_tau=0.0d0
   newKmax=0
 
 
   ALLOCATE(F_ind(N_nodes),flux(N_nodes),salidas(N_nodes),SL(N_nodes))
   salidas=0
-  SL=0
+  SL=0.0d0
 
   DO i=1,N_nodes
      DO j=T_start(i)+1,T_start(i+1)
@@ -227,15 +393,15 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
 
            gg=salidas(i)
            IF (gg==0) THEN
-              ALLOCATE(F_ind(i)%p1(1),flux(i)%p1(1))
+              ALLOCATE(F_ind(i)%p1(1),flux(i)%d1(1))
               F_ind(i)%p1(1)=destino
-              flux(i)%p1(1)=T_tau(j)
+              flux(i)%d1(1)=T_tau(j)
               salidas(i)=1
            ELSE
               interruptor=.false.
               DO h=1,gg
                  IF (F_ind(i)%p1(h)==destino) THEN
-                    flux(i)%p1(h)=flux(i)%p1(h)+T_tau(j)
+                    flux(i)%d1(h)=flux(i)%d1(h)+T_tau(j)
                     interruptor=.true.
                     exit
                  END IF
@@ -243,29 +409,29 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
               IF (interruptor.eqv..false.) THEN
                  ALLOCATE(auxx1(gg+1),auxx2(gg+1))
                  auxx1(1:gg)=F_ind(i)%p1(:)
-                 auxx2(1:gg)=flux(i)%p1(:)
+                 auxx2(1:gg)=flux(i)%d1(:)
                  auxx1(gg+1)=destino
                  auxx2(gg+1)=T_tau(j)
                  salidas(i)=gg+1
-                 DEALLOCATE(F_ind(i)%p1,flux(i)%p1)
-                 ALLOCATE(F_ind(i)%p1(gg+1),flux(i)%p1(gg+1))
+                 DEALLOCATE(F_ind(i)%p1,flux(i)%d1)
+                 ALLOCATE(F_ind(i)%p1(gg+1),flux(i)%d1(gg+1))
                  F_ind(i)%p1(:)=auxx1(:)
-                 flux(i)%p1(:)=auxx2(:)
+                 flux(i)%d1(:)=auxx2(:)
                  DEALLOCATE(auxx1,auxx2)
               END IF
            END IF
 
            gg=salidas(destino)   
            IF (gg==0) THEN
-              ALLOCATE(F_ind(destino)%p1(1),flux(destino)%p1(1))
+              ALLOCATE(F_ind(destino)%p1(1),flux(destino)%d1(1))
               F_ind(destino)%p1(1)=i
-              flux(destino)%p1(1)=T_tau(j)
+              flux(destino)%d1(1)=T_tau(j)
               salidas(destino)=1
            ELSE
               interruptor=.false.
               DO h=1,gg
                  IF (F_ind(destino)%p1(h)==i) THEN
-                    flux(destino)%p1(h)=flux(destino)%p1(h)+T_tau(j)
+                    flux(destino)%d1(h)=flux(destino)%d1(h)+T_tau(j)
                     interruptor=.true.
                     exit
                  END IF
@@ -273,14 +439,14 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
               IF (interruptor.eqv..false.) THEN
                  ALLOCATE(auxx1(gg+1),auxx2(gg+1))
                  auxx1(1:gg)=F_ind(destino)%p1(:)
-                 auxx2(1:gg)=flux(destino)%p1(:)
+                 auxx2(1:gg)=flux(destino)%d1(:)
                  auxx1(gg+1)=i
                  auxx2(gg+1)=T_tau(j)
                  salidas(destino)=gg+1
-                 DEALLOCATE(F_ind(destino)%p1,flux(destino)%p1)
-                 ALLOCATE(F_ind(destino)%p1(gg+1),flux(destino)%p1(gg+1))
+                 DEALLOCATE(F_ind(destino)%p1,flux(destino)%d1)
+                 ALLOCATE(F_ind(destino)%p1(gg+1),flux(destino)%d1(gg+1))
                  F_ind(destino)%p1(:)=auxx1(:)
-                 flux(destino)%p1(:)=auxx2(:)
+                 flux(destino)%d1(:)=auxx2(:)
                  DEALLOCATE(auxx1,auxx2)
               END IF
            END IF
@@ -311,11 +477,11 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
      gg=g
      g=g+salidas(i)
      salidas(i)=0
-     l=SL(i)
-     IF (l>0) THEN
+     aux=SL(i)
+     IF (aux>0.0d0) THEN
         TT_ind(gg+1)=i
-        TT_tau(gg+1)=l
-        Pe(i)=l
+        TT_tau(gg+1)=aux
+        Pe(i)=aux
         salidas(i)=1
      END IF
   END DO
@@ -323,17 +489,17 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
 
   DO i=1,N_nodes
      gg=size(F_ind(i)%p1(:),DIM=1)
-     h=0
+     aux2=0.0d0
      DO j=1,gg
         g=salidas(i)+1
         salidas(i)=g
         g=g+TT_start(i)
-        l=flux(i)%p1(j)
+        aux=flux(i)%d1(j)
         TT_ind(g)=F_ind(i)%p1(j)
-        TT_tau(g)=l
-        h=h+l
+        TT_tau(g)=aux
+        aux2=aux2+aux
      END DO
-     Pe(i)=Pe(i)+h
+     Pe(i)=Pe(i)+aux2
   END DO
 
   newKmax=MAXVAL(salidas(:),DIM=1)
@@ -342,14 +508,11 @@ SUBROUTINE SYMMETRIZE_NET(newKmax,TT_tau,TT_ind,TT_start,Pe,newKtot,T_ind,T_tau,
   DEALLOCATE(F_ind,flux,salidas,SL)
 
 
-
-
-
 END SUBROUTINE SYMMETRIZE_NET
 
 
 
-SUBROUTINE GRAD (N_sets,comunidades,T_ind,T_tau,T_start,N_nodes,Ktot)
+SUBROUTINE GRAD (N_sets,comunidades,T_ind,T_tau,T_start,N_nodes,Ktot)   !!!! Para revisar!!!! T_tau debe ser double precision
 
 
   IMPLICIT NONE
@@ -582,7 +745,7 @@ SUBROUTINE GRAD (N_sets,comunidades,T_ind,T_tau,T_start,N_nodes,Ktot)
 END SUBROUTINE GRAD
 
 
-SUBROUTINE BUILD_NET_BIN (f_traj_nodes,f_net,nw,frames)
+SUBROUTINE BUILD_NET_BIN (f_traj_nodes,f_net,nw,frames)   !!!! Para revisar el double precision de T_tau
 
 IMPLICIT NONE
 
@@ -836,7 +999,7 @@ END SUBROUTINE BUILD_NET_BIN
 
 
 
-SUBROUTINE BUILD_NET (f_traj_nodes,f_net,nw,frames)
+SUBROUTINE BUILD_NET (f_traj_nodes,f_net,nw,frames)   !!!! Para revisar el double precision de T_tau
 
 IMPLICIT NONE
 
@@ -1093,19 +1256,20 @@ DEALLOCATE(tray)
 END SUBROUTINE BUILD_NET
 
 
-SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes,Ktot)
+SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,num_iter,N_nodes,Ktot)
 
   implicit none
 
-  INTEGER,INTENT(IN)::A,B,N_nodes,Ktot,length
-  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind,T_tau
+  INTEGER,INTENT(IN)::A,B,N_nodes,Ktot,length,num_iter
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
   INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
 
   REAL,DIMENSION(length,3),INTENT(OUT)::plot
   REAL,DIMENSION(N_nodes,2),INTENT(OUT)::info_2
   INTEGER,DIMENSION(N_nodes),INTENT(OUT)::info_1
 
-  INTEGER,DIMENSION(:),ALLOCATABLE::Pe
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::Pe
   
   integer::i,j,times,jj,g
 
@@ -1115,7 +1279,7 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
   logical,dimension(:),allocatable::filtro,filtro2
   double precision::cut
   double precision::delta_cut
-  integer::Z,Za,Zab
+  double precision::Z,Za,Zab
 
 
   plot=0.0d0
@@ -1124,7 +1288,7 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
 
 
   ALLOCATE(Pe(N_nodes))
-  Pe=0
+  Pe=0.0d0
   DO i=1,N_nodes
      DO j=T_start(i),T_start(i+1)
         Pe(i)=Pe(i)+T_tau(j)
@@ -1140,7 +1304,7 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
   Pf2(B)=0.0d0
 
 
-  DO times=1,12000
+  DO times=1,num_iter
 
      Pf2(A)=1.0d0
      Pf2(B)=0.0d0
@@ -1149,7 +1313,7 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
      DO i=1,N_nodes
         DO j=T_start(i)+1,T_start(i+1)
            jj=T_ind(j)
-           Pf2(i)=Pf2(i)+(T_tau(j)*Pf(jj))/(1.0d0*Pe(i))
+           Pf2(i)=Pf2(i)+(T_tau(j)*Pf(jj))/Pe(i)
         END DO
      END DO
 
@@ -1196,16 +1360,16 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
 
      
      !WRITE(154,*) ((Za*1.0d0)/(Z*1.0d0)),-log((Zab*1.0d0)/(Z*1.0d0)),cut
-     plot(g,1)=((Za*1.0d0)/(Z*1.0d0))
-     plot(g,2)=-log((Zab*1.0d0)/(Z*1.0d0))
+     plot(g,1)=(Za/Z)
+     plot(g,2)=-log(Zab/Z)
      plot(g,3)=cut
 
      DO i=1,N_nodes
         IF (filtro(i).eqv..true.) THEN 
            IF (filtro2(i).eqv..false.) THEN
               filtro2(i)=.true.
-              appear(i,1)=((Za*1.0d0)/(Z*1.0d0))
-              appear(i,2)=-log((Zab*1.0d0)/(Z*1.0d0))
+              appear(i,1)=Za/Z
+              appear(i,2)=-log(Zab/Z)
            END IF
         END IF
      END DO     
@@ -1225,6 +1389,534 @@ SUBROUTINE cfep_pfold (plot,info_1,info_2,A,B,T_ind,T_tau,T_start,length,N_nodes
 
 END SUBROUTINE cfep_pfold
 
+
+
+
+SUBROUTINE cfep_mfpt (plot,info_1,info_2,A,T_ind,T_tau,T_start,length,num_iter,N_nodes,Ktot)
+
+  implicit none
+
+  INTEGER,INTENT(IN)::A,N_nodes,Ktot,length,num_iter
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+
+  REAL,DIMENSION(length,3),INTENT(OUT)::plot
+  REAL,DIMENSION(N_nodes,2),INTENT(OUT)::info_2
+  INTEGER,DIMENSION(N_nodes),INTENT(OUT)::info_1
+
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::Pe
+  
+  integer::i,j,times,jj,g
+
+  double precision,dimension(:),allocatable::Pf,Pf2,antes
+  double precision,dimension(:,:),allocatable::appear
+  
+  logical,dimension(:),allocatable::filtro,filtro2
+  double precision::cut
+  double precision::delta_cut,mm
+  double precision::Z,Za,Zab
+  logical::interr
+
+  plot=0.0d0
+  info_2=0.0d0
+  info_1=0
+
+
+  ALLOCATE(Pe(N_nodes))
+  Pe=0.0d0
+  DO i=1,N_nodes
+     DO j=T_start(i),T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
+
+  ALLOCATE(Pf(N_nodes),Pf2(N_nodes),appear(N_nodes,2),antes(N_nodes))
+  Pf=0.0d0
+  Pf2=0.0d0
+  appear=0.0d0
+
+  Pf2=100000.0d0
+  Pf2(A)=0.0d0
+
+
+  DO times=1,num_iter
+
+     Pf2(A)=0.0d0
+     Pf=Pf2
+     antes=Pf2
+     Pf2=0.0d0
+     
+     DO i=1,N_nodes
+        DO j=T_start(i)+1,T_start(i+1)
+           jj=T_ind(j)
+           Pf2(i)=Pf2(i)+(T_tau(j)*Pf(jj))/Pe(i)
+        END DO
+     END DO
+
+     antes=antes-Pf2
+     interr=.false.
+     DO i=1,N_nodes
+        IF (abs(antes(i))>0.0010d0) THEN
+           interr=.true.
+           exit
+        END IF
+     END DO
+     
+     IF (interr==.false.) exit
+
+     Pf2=Pf2+1.0d0
+  END DO
+
+
+
+  Pf2(A)=0.0d0
+
+  Pf=Pf2
+
+  
+  DEALLOCATE(Pf2)
+  ALLOCATE(filtro(N_nodes),filtro2(N_nodes))
+
+  filtro2=.false.
+
+  Z=sum(Pe(:),dim=1)
+
+  mm=maxval(Pf(:),DIM=1)
+
+  delta_cut=(mm*1.0d0)/(length*1.0d0)
+
+  DO g=1,length
+
+     cut=delta_cut*g
+
+     Za=0.0d0
+     Zab=0.0d0
+     filtro=.false.
+
+     DO i=1,N_nodes
+        IF (Pf(i)<cut) THEN 
+           filtro(i)=.true.
+        END IF
+     END DO
+
+     DO i=1,N_nodes
+        IF (filtro(i).eqv..true.) THEN
+           Za=Za+Pe(i)
+           DO j=T_start(i)+1,T_start(i+1)
+              jj=T_ind(j)
+              IF (filtro(jj).eqv..false.) THEN
+                 Zab=Zab+T_tau(j)
+              END IF
+           END DO
+        END IF
+     END DO
+
+     
+     !WRITE(154,*) ((Za*1.0d0)/(Z*1.0d0)),-log((Zab*1.0d0)/(Z*1.0d0)),cut
+     plot(g,1)=(Za/Z)
+     plot(g,2)=-log(Zab/Z)
+     plot(g,3)=cut
+
+     DO i=1,N_nodes
+        IF (filtro(i).eqv..true.) THEN 
+           IF (filtro2(i).eqv..false.) THEN
+              filtro2(i)=.true.
+              appear(i,1)=Za/Z
+              appear(i,2)=-log(Zab/Z)
+           END IF
+        END IF
+     END DO     
+
+  END DO
+
+  filtro=.true.
+  DO i=1,N_nodes
+     g=minloc(appear(:,1),DIM=1,MASK=filtro(:))
+     !WRITE(155,*) g, appear(g,1), appear(g,2)
+     info_1(i)=g
+     info_2(i,1)=appear(g,1)
+     info_2(i,2)=appear(g,2)
+     filtro(g)=.false.
+  END DO
+!  PRINT*,COUNT(filtro)
+
+END SUBROUTINE cfep_mfpt
+
+SUBROUTINE COMPONENTS(num_comp,componente,T_start,T_ind,T_tau,N_nodes,Ktot)
+
+  IMPLICIT NONE
+  
+  INTEGER,INTENT(IN)::N_nodes,Ktot
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  
+  
+  INTEGER,DIMENSION(N_nodes),INTENT(OUT)::componente
+  INTEGER,INTENT(OUT)::num_comp
+  
+  INTEGER::i,j,jj,g,gg,h,hh
+  
+  componente=0
+  num_comp=0
+  
+  DO i=1,N_nodes
+     
+     IF (componente(i)==0) THEN
+        num_comp=num_comp+1
+        g=num_comp
+        componente(i)=g
+     ELSE
+        g=componente(i)
+     END IF
+     
+     DO j=T_start(i)+1,T_start(i+1)
+        jj=T_ind(j)
+        IF (componente(jj)==0) THEN
+           componente(jj)=g
+        ELSE
+           IF (componente(jj)/=g) THEN
+              IF (componente(jj)<g) THEN
+                 gg=componente(jj)
+              ELSE
+                 gg=g
+                 g=componente(jj)
+              END IF
+              DO h=1,N_nodes
+                 IF (componente(h)==g) THEN
+                    componente(h)=gg
+                 ELSE
+                    IF (componente(h)>g) componente(h)=componente(h)-1
+                 END IF
+              END DO
+              g=gg
+              num_comp=num_comp-1
+           END IF
+        END IF
+     END DO
+  END DO
+
+  componente=componente-1
+  
+END SUBROUTINE COMPONENTS
+
+
+SUBROUTINE DIJKSTRA (distancia,node,dim_out,directed,T_start,T_ind,T_tau,N_nodes,Ktot)
+ 
+  IMPLICIT NONE
+  
+  INTEGER,INTENT(IN)::N_nodes,Ktot,node,directed,dim_out
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  DOUBLE PRECISION,DIMENSION(N_nodes,dim_out),INTENT(OUT)::distancia
+  
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::vect_aux
+  LOGICAL,DIMENSION(:),ALLOCATABLE::filtro,filtro2
+  
+  INTEGER::i,j,jj,g,gg,h,hh
+  
+  ALLOCATE(filtro(N_nodes),vect_aux(N_nodes))
+  
+  distancia=0.0d0
+
+  IF (node>0) THEN
+     
+     vect_aux=1.0d0/0.0d0
+     filtro=.true.
+     vect_aux(node)=0.0d0
+     
+     DO WHILE (COUNT(filtro)>0)
+        i=MINLOC(vect_aux(:),DIM=1,MASK=filtro)
+        DO j=T_start(i)+1,T_start(i+1)
+           g=T_ind(j)
+           IF (filtro(g)==.true.) THEN
+              IF (vect_aux(g)>(vect_aux(i)+T_tau(j))) THEN
+                 vect_aux(g)=vect_aux(i)+T_tau(j)
+              END IF
+           END IF
+        END DO
+        filtro(i)=.false.
+     END DO
+     distancia(:,1)=vect_aux(:)
+
+  ELSE
+
+     ALLOCATE(filtro2(N_nodes))
+     DO h=1,N_nodes
+        vect_aux=1.0d0/0.0d0
+        filtro=.true.
+        filtro2=.true.
+        vect_aux(h)=0.0d0
+        IF (directed==0) THEN
+           DO i=1,h-1
+              vect_aux(i)=distancia(h,i)
+              filtro2(i)=.false.
+           END DO
+        END IF
+        DO WHILE (COUNT(filtro)>0)
+           i=MINLOC(vect_aux(:),DIM=1,MASK=filtro)
+           DO j=T_start(i)+1,T_start(i+1)
+              g=T_ind(j)
+              IF (filtro2(g)==.true.) THEN
+                 IF (vect_aux(g)>(vect_aux(i)+T_tau(j))) THEN
+                    vect_aux(g)=vect_aux(i)+T_tau(j)
+                 END IF
+              END IF
+           END DO
+
+           filtro(i)=.false.
+           filtro2(i)=.false.
+        END DO
+        distancia(:,h)=vect_aux(:)
+     END DO
+     DEALLOCATE(filtro2)
+
+  END IF
+
+  DEALLOCATE(filtro,vect_aux)
+
+END SUBROUTINE DIJKSTRA
+
+SUBROUTINE MDS (coordinates,eigenvals,eigenvects,stress,directed,opt,opt_stress,dim,lout,T_start,T_ind,T_tau,distances,N_nodes,Ktot,dim_distances)
+ 
+  IMPLICIT NONE
+  
+  INTEGER,INTENT(IN)::N_nodes,Ktot,lout,dim,opt,opt_stress,directed,dim_distances
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+  DOUBLE PRECISION,DIMENSION(dim_distances,dim_distances),INTENT(IN)::distances
+
+  DOUBLE PRECISION,DIMENSION(lout),INTENT(OUT)::eigenvals
+  DOUBLE PRECISION,DIMENSION(N_nodes,lout),INTENT(OUT)::eigenvects
+  DOUBLE PRECISION,DIMENSION(N_nodes,dim),INTENT(OUT)::coordinates
+  DOUBLE PRECISION,DIMENSION(lout),INTENT(OUT)::stress
+
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::vect_aux,coors_aux
+  DOUBLE PRECISION::dd,norm,salida
+  DOUBLE PRECISION,DIMENSION(:),ALLOCATABLE::di
+  DOUBLE PRECISION,DIMENSION(:,:),ALLOCATABLE::CC
+  INTEGER::num_val,info,Lwork
+  INTEGER, DIMENSION(:), ALLOCATABLE::iwork,ifail
+  DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE::work
+
+  INTEGER::h,i,j,g,abajo,ii,jj,gg
+
+  eigenvals=0.0d0
+  eigenvects=0.0d0
+  coordinates=0.0d0
+  stress=0.0d0
+
+  ALLOCATE(CC(N_nodes,N_nodes),di(N_nodes))
+  di=0.0d0
+  dd=0.0d0
+  CC=0.0d0
+
+  IF (dim_distances==N_nodes) THEN
+     CC=distances
+  ELSE
+     !! Dijkstra:
+     IF (opt==1) THEN
+        CALL DIJKSTRA(CC,-1,N_nodes,directed,T_start,T_ind,T_tau,N_nodes,Ktot)
+     ELSE
+        DO h=1,N_nodes
+           DO i=T_start(h)+1,T_start(h+1)
+              j=T_ind(i)
+              CC(j,h)=T_tau(i)
+           END DO
+        END DO
+     END IF
+  END IF
+  print*,'ENTRA 1'
+
+  !! Deberia poner aqui una opcion para hacer un guardado opcional distancias=CC
+  !! y usarlas luego como opcion al calcular el stress.
+
+  DO i=1,N_nodes
+     DO j=1,N_nodes
+        CC(j,i)=CC(j,i)**2    ! Necesario en el metodo
+        di(i)=di(i)+CC(j,i)
+        dd=dd+CC(j,i)
+     END DO
+     di(i)=di(i)/(N_nodes*1.0d0)
+  END DO
+  dd=dd/(N_nodes*N_nodes*1.0d0)
+
+  DO i=1,N_nodes
+     DO j=1,N_nodes
+        CC(j,i)=-0.50d0*(CC(j,i)-di(i)-di(j)+dd)
+     END DO
+  END DO
+
+  Lwork=8*N_nodes
+
+  ALLOCATE (work(Lwork),iwork(5*N_nodes),ifail(N_nodes))
+
+  eigenvals=0.0d0
+  eigenvects=0.0d0
+  work=0.0d0
+  iwork=0
+  ifail=0
+  abajo=N_nodes-lout+1
+
+
+  print*,'ENTRA 2'
+
+  CALL dsyevx ('V','I','U',N_nodes,CC,N_nodes,0,0,abajo,N_nodes,0.0d0,num_val&
+       &,eigenvals,eigenvects,N_nodes,work,Lwork,iwork,ifail,info)
+
+  IF (info/=0) THEN
+     print*,"#Error with the diagonalization -MDS.f90:dsyevx-"
+     print*,"#the array 'work' should has the dimension:",work(1)
+  END IF
+
+  DEALLOCATE (work,iwork,ifail,CC)
+  DEALLOCATE(di)
+
+  coordinates=0.0d0
+
+  DO j=1,dim
+     coordinates(:,j)=sqrt(eigenvals(lout-j+1))*eigenvects(:,lout-j+1)
+  END DO
+
+  IF (opt_stress==1) THEN
+     ALLOCATE(vect_aux(Ktot),coors_aux(N_nodes))
+     vect_aux=0.0d0
+     coors_aux=0.0d0
+     norm=0.0d0
+     DO ii=1,N_nodes
+        DO jj=T_start(ii)+1,T_start(ii+1)
+           norm=norm+T_tau(jj)**2
+        END DO
+     END DO
+     DO j=1,lout
+        if (eigenvals(lout-j+1)>0.0d0) THEN
+           salida=0.0d0
+           dd=sqrt(eigenvals(lout-j+1))
+           coors_aux(:)=dd*eigenvects(:,lout-j+1)
+           DO ii=1,N_nodes
+              DO jj=T_start(ii)+1,T_start(ii+1)
+                 gg=T_ind(jj)
+                 vect_aux(jj)=vect_aux(jj)+(coors_aux(ii)-coors_aux(gg))**2
+                 salida=salida+(sqrt(vect_aux(jj))-T_tau(jj))**2
+              END DO
+           END DO
+           stress(j)=sqrt(salida/norm)
+        END IF
+     END DO
+     DEALLOCATE(vect_aux,coors_aux)
+  END IF
+  
+
+END SUBROUTINE MDS
+
+SUBROUTINE MCL (N_sets,comunidades,granularity,epsilon,iterations,T_start,T_ind,T_tau,N_nodes,Ktot)
+ 
+  IMPLICIT NONE
+  
+  DOUBLE PRECISION, INTENT(IN):: granularity,epsilon
+  INTEGER,INTENT(IN)::N_nodes,Ktot,iterations
+  INTEGER,DIMENSION(Ktot),INTENT(IN)::T_ind
+  DOUBLE PRECISION,DIMENSION(Ktot),INTENT(IN)::T_tau
+  INTEGER,DIMENSION(N_nodes+1),INTENT(IN)::T_start
+
+  INTEGER,INTENT(OUT)::N_sets
+  INTEGER,DIMENSION(N_nodes),INTENT(OUT)::comunidades
+
+  DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE:: Pe
+  DOUBLE PRECISION, DIMENSION(:,:), ALLOCATABLE:: matriz, matriz_seg, matriz2
+
+  INTEGER::i,j,ii,g,h
+  DOUBLE PRECISION:: aux
+  LOGICAL::inter
+
+  ALLOCATE(Pe(N_nodes),matriz(N_nodes,N_nodes),matriz2(N_nodes,N_nodes))
+  Pe=0.0d0
+  DO i=1,N_nodes
+     DO j=T_start(i)+1, T_start(i+1)
+        Pe(i)=Pe(i)+T_tau(j)
+     END DO
+  END DO
+
+  matriz=0.0d0
+  matriz2=0.0d0
+
+  DO i=1,N_nodes
+     DO j=T_start(i)+1,T_start(i+1)
+        matriz(i,T_ind(j))=T_tau(j)/Pe(i)
+        
+     END DO
+  END DO
+  
+  inter=.true.
+  ii=0
+
+  DO WHILE (inter==.true.)
+     ii=ii+1
+
+     matriz2=matmul(matriz,matriz)
+     
+     DO j=1,N_nodes
+        DO g=1,N_nodes
+           matriz2(j,g)=matriz2(j,g)**granularity
+        END DO
+     END DO
+     
+     DO j=1,N_nodes
+        aux=sum(matriz2(j,:))
+        matriz2(j,:)=matriz2(j,:)/aux
+     END DO
+     
+
+     IF (iterations<0.1) THEN
+        inter=.false.
+        DO g=1,N_nodes
+           DO h=1,N_nodes
+              IF (abs(matriz(g,h)-matriz2(g,h))>epsilon) THEN
+                 inter=.true.
+                 exit
+              END IF
+           END DO
+           IF (inter==.true.) THEN
+              exit
+           END IF
+        END DO
+     END IF
+
+     IF (ii==iterations) THEN
+        inter=.false.
+     END IF
+     
+     matriz=matriz2
+
+  END DO
+
+  N_sets=0
+  DO g=1,N_nodes
+     IF (sum(matriz(:,g))/=0.0d0) THEN
+        N_sets=N_sets+1
+     END IF
+  END DO
+  
+  h=0
+  DO g=1,N_nodes
+     IF (sum(matriz(:,g))/=0.0d0) THEN
+        h=h+1
+        DO j=1,N_nodes
+           IF (matriz(j,g)/=0.0d0) THEN
+              comunidades(j)=h
+           END IF
+        END DO
+     END IF
+  END DO
+  
+  DEALLOCATE(Pe,matriz,matriz2)
+
+  comunidades=comunidades-1
+
+END SUBROUTINE MCL
 
 END MODULE funcs
 
