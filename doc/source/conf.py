@@ -18,7 +18,7 @@ import sys, os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(os.path.abspath('sphinxext'))
-sys.path.append('../')
+sys.path.append(os.path.abspath('docpy'))
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -26,7 +26,17 @@ sys.path.append('../')
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx', 'sphinx.ext.todo', 'sphinx.ext.ifconfig', 'inheritance_diagram']
+extensions = [
+          'matplotlib.sphinxext.mathmpl',
+          'matplotlib.sphinxext.only_directives',
+          'matplotlib.sphinxext.plot_directive',
+#          'matplotlib.sphinxext.ipython_directive',
+          'sphinx.ext.autodoc', 
+          'sphinx.ext.intersphinx', 
+          'sphinx.ext.todo', 
+          'sphinx.ext.ifconfig', 
+          'inheritance_diagram',
+          'ipython_console_highlighting']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -245,3 +255,10 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+
+# Including todo:
+[extensions]
+todo_include_todos=True
+
+# Removing links to files if ..plot::
+plot_html_show_formats=False
